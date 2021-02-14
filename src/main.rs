@@ -46,11 +46,9 @@ impl EventHandler for GameState {
       зарежда един въпрос заедно с 4 отговора.Зарежда също кой отговор е правилен.
       Който се от отговорите се натисне, се чака 4 секунди и се отчита дали е верен.
       Ако е верен,зарежда следващ въпрос и отговори,иначе спира играта. 
-
-
-
-
     */
+    
+   
 
     Ok(())
   }
@@ -67,37 +65,38 @@ impl EventHandler for GameState {
      Color::new(0.0,0.0,40.0,0.95))?;
     graphics::draw(_ctx,&question_rect,DrawParam::default())?;
 
+    // answer placeholder
+    let answer_rect = graphics::Mesh::new_rectangle(
+      _ctx,
+       DrawMode::fill(),
+      Rect::new(0.0,0.0,330.0,40.0),
+      Color::new(0.0,0.0,40.0,0.95))?;
+
+
     //draws the first answer placeholder
-    let question_rect = graphics::Mesh::new_rectangle(
-      _ctx,
-       DrawMode::fill(),
-     Rect::new(60.0,400.0,330.0,40.0),
-     Color::new(0.0,0.0,40.0,0.95))?;
-    graphics::draw(_ctx,&question_rect,DrawParam::default())?;
-
+    graphics::draw(_ctx,&answer_rect,DrawParam{
+      dest:Point2{x:60.0,y:400.0},
+      ..Default::default()
+    })?;
     //draws the second answer placeholder
-    let question_rect = graphics::Mesh::new_rectangle(
-      _ctx,
-       DrawMode::fill(),
-     Rect::new(410.0,400.0,330.0,40.0),
-     Color::new(0.0,0.0,40.0,0.95))?;
-    graphics::draw(_ctx,&question_rect,DrawParam::default())?;
+    graphics::draw(_ctx,&answer_rect,DrawParam{
+      dest:Point2{x:410.0,y:400.0},
+      ..Default::default()
+    })?;
 
-    //draws the third answer placeholder
-    let question_rect = graphics::Mesh::new_rectangle(
-      _ctx,
-       DrawMode::fill(),
-     Rect::new(60.0,450.0,330.0,40.0),
-     Color::new(0.0,0.0,40.0,0.95))?;
-    graphics::draw(_ctx,&question_rect,DrawParam::default())?;
+     //draws the third answer placeholder
+    graphics::draw(_ctx,&answer_rect,DrawParam{
+      dest:Point2{x:60.0,y:450.0},
+      ..Default::default()
+    })?;
 
-    //draws the fourth answer placeholder
-    let question_rect = graphics::Mesh::new_rectangle(
-      _ctx,
-       DrawMode::fill(),
-     Rect::new(410.0,450.0,330.0,40.0),
-     Color::new(0.0,0.0,40.0,0.95))?;
-    graphics::draw(_ctx,&question_rect,DrawParam::default())?;
+     //draws the fourth answer placeholder
+    graphics::draw(_ctx,&answer_rect,DrawParam{
+      dest:Point2{x:410.0,y:450.0},
+      ..Default::default()
+    })?;
+
+  
 
     graphics::present(_ctx)?;
     Ok(())

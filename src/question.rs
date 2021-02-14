@@ -1,3 +1,7 @@
+use ggez::*;
+use ggez::graphics::{Text,Align,DrawParam};
+use ggez::mint::Point2;
+
 /*
 Въпрос с 4 отговора и стойност,която показва верния
 */
@@ -29,20 +33,51 @@ impl Question{
     }
 
     //draw and update should be added
+    pub fn draw(&mut self,_ctx:&mut Context) -> GameResult<()>{
+
+         let mut dr_question = Text::new(self.question.as_str());//drawed question
+         let mut dr_answer1 = Text::new(self.answer_1.as_str());
+         let mut dr_answer2 = Text::new(self.answer_2.as_str());
+         let mut dr_answer3 = Text::new(self.answer_3.as_str());
+         let mut dr_answer4 = Text::new(self.answer_4.as_str());
+
+        //set the bounds of the strings
+         dr_question.set_bounds(Point2{x:680.0,y:80.0},Align::Center);
+         dr_answer1.set_bounds(Point2{x:330.0,y:40.0}, Align::Center );
+         dr_answer2.set_bounds(Point2{x:330.0,y:40.0}, Align::Center );
+         dr_answer3.set_bounds(Point2{x:330.0,y:40.0}, Align::Center );
+         dr_answer4.set_bounds(Point2{x:330.0,y:40.0}, Align::Center );
+
+         //draws the question
+          graphics::draw(_ctx,&dr_question,DrawParam{
+              dest:Point2{x:60.0,y:300.0},
+              ..Default::default()
+          })?; 
+          //draws the first answer 
+          graphics::draw(_ctx,&dr_answer1,DrawParam{
+            dest:Point2{x:60.0,y:400.0},
+            ..Default::default()
+          })?;
+          //draws the second answer 
+          graphics::draw(_ctx,&dr_answer2,DrawParam{
+            dest:Point2{x:410.0,y:400.0},
+            ..Default::default()
+          })?;
+      
+           //draws the third answer 
+          graphics::draw(_ctx,&dr_answer3,DrawParam{
+            dest:Point2{x:60.0,y:450.0},
+            ..Default::default()
+          })?;
+      
+           //draws the fourth answer 
+          graphics::draw(_ctx,&dr_answer4,DrawParam{
+            dest:Point2{x:410.0,y:450.0},
+            ..Default::default()
+          })?;
+
+
+        Ok(())
+    }
   
 }
-
-/*
-impl Clone for Question{
-    fn clone(&self) -> Self{
-        Self{
-            question:self.question.clone(),
-            answer_1:self.answer_1.clone(),
-            answer_2:self.answer_2.clone(),
-            answer_3:self.answer_3.clone(),
-            answer_4:self.answer_4.clone(),
-            correct_answer:self.correct_answer.clone()
-        }
-    }
-}
-*/

@@ -20,7 +20,7 @@ impl QuestionList{
             _question_list.push(question);
         }
 
-        Self{question_list: _question_list,pos:0}
+        Self{ question_list: _question_list, pos: 0 }
     }
 }
 
