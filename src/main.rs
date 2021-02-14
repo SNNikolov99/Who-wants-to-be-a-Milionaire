@@ -3,6 +3,8 @@ use ggez::conf::{WindowMode,Conf};
 use ggez::event::EventHandler;
 use wwtm_project::source::Assets;
 use wwtm_project::question_list::QuestionList;
+use ggez::graphics::{DrawParam,DrawMode,Rect,Color};
+use ggez::mint::Point2;
 
 
 use std::env;
@@ -56,6 +58,47 @@ impl EventHandler for GameState {
     //draws the background
     let default = graphics::DrawParam::new();
     graphics::draw(_ctx,&self.assets.background,default)?;
+
+    //draws the question placeholder
+    let question_rect = graphics::Mesh::new_rectangle(
+      _ctx,
+       DrawMode::fill(),
+     Rect::new(60.0,300.0,680.0,80.0),
+     Color::new(0.0,0.0,40.0,0.95))?;
+    graphics::draw(_ctx,&question_rect,DrawParam::default())?;
+
+    //draws the first answer placeholder
+    let question_rect = graphics::Mesh::new_rectangle(
+      _ctx,
+       DrawMode::fill(),
+     Rect::new(60.0,400.0,330.0,40.0),
+     Color::new(0.0,0.0,40.0,0.95))?;
+    graphics::draw(_ctx,&question_rect,DrawParam::default())?;
+
+    //draws the second answer placeholder
+    let question_rect = graphics::Mesh::new_rectangle(
+      _ctx,
+       DrawMode::fill(),
+     Rect::new(410.0,400.0,330.0,40.0),
+     Color::new(0.0,0.0,40.0,0.95))?;
+    graphics::draw(_ctx,&question_rect,DrawParam::default())?;
+
+    //draws the third answer placeholder
+    let question_rect = graphics::Mesh::new_rectangle(
+      _ctx,
+       DrawMode::fill(),
+     Rect::new(60.0,450.0,330.0,40.0),
+     Color::new(0.0,0.0,40.0,0.95))?;
+    graphics::draw(_ctx,&question_rect,DrawParam::default())?;
+
+    //draws the fourth answer placeholder
+    let question_rect = graphics::Mesh::new_rectangle(
+      _ctx,
+       DrawMode::fill(),
+     Rect::new(410.0,450.0,330.0,40.0),
+     Color::new(0.0,0.0,40.0,0.95))?;
+    graphics::draw(_ctx,&question_rect,DrawParam::default())?;
+
     graphics::present(_ctx)?;
     Ok(())
     
@@ -76,16 +119,17 @@ pub fn main() {
     .build()
     .unwrap();
 
-
+  //  load the assets from resources
   if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
       let mut path = path::PathBuf::from(manifest_dir);
       path.push("resources");
       filesystem::mount( ctx, &path, true);
   }
   
-
+  //load the state
   let state = &mut GameState::new(ctx, &c).unwrap(); 
 
+  //run!
   event::run(ctx, event_loop, state).unwrap();
 }
 

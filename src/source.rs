@@ -9,7 +9,7 @@ pub struct Assets{
 
 impl Assets{
    pub fn new(ctx:&mut Context)->GameResult<Assets>{
-        let background = graphics::Image::new(ctx,"/background.jpeg")?;
+        let background = graphics::Image::new(ctx,"/background1.jpeg")?;
         let main_theme = audio::Source::new(ctx,"/main theme.mp3")?;
 
 
