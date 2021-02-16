@@ -24,6 +24,9 @@ impl QuestionList{
     }
 }
 
+
+
+
 impl Iterator for QuestionList{
     type Item = Question;
     fn next(&mut self) -> Option<Self::Item>{
@@ -37,8 +40,7 @@ impl Iterator for QuestionList{
                 Some(current.unwrap().clone())
             },
             None => None
-        }
-        
+        }      
     }
     
 }
