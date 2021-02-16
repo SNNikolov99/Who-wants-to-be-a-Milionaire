@@ -15,6 +15,7 @@ use std::path;
 
 struct GameState{
   game_over:bool,
+  player_resigned:bool,
   current_score:u32,
   assets:Assets,
   questions:QuestionList,
@@ -23,7 +24,7 @@ struct GameState{
   question_marked:char,
   current_question:Question,
   current_question_index:usize, // helps finding question score
-  saved_score:i32, //can 500,2500,100000 or the current_score if the player decides to resign
+  saved_score:u32, //can 500,2500,100000 or the current_score if the player decides to resign
 
 }
 
@@ -40,6 +41,7 @@ impl GameState{
     let gs = Self
       {
         game_over:false,
+        player_resigned:false,
         current_score:0,
         assets:_assets,
         questions:_questions,
@@ -65,6 +67,7 @@ impl EventHandler for GameState {
       event::KeyCode::B =>self.question_marked = 'b',
       event::KeyCode::C =>self.question_marked = 'c',
       event::KeyCode::D =>self.question_marked = 'd',
+      event::KeyCode::R =>self.player_resigned  = true,
       event::KeyCode::Escape => event::quit(ctx),
       _=> () 
     }
@@ -86,6 +89,13 @@ impl EventHandler for GameState {
       return Ok(());
     }
 
+  
+    if self.player_resigned == true{
+      self.saved_score = self.current_score;
+      self.game_over = true;
+      ggez::timer::sleep(std::time::Duration::new(2,0));//make the exit more smooth
+      return Ok(());
+    }
     
     let score_board = vec!(0,50,100,200,500,750,1000,1500,2000,2500,5000,10000,20000,50000,100000);//question I gives score I
     let mut score_board_iter = score_board.iter();
@@ -115,14 +125,25 @@ impl EventHandler for GameState {
       self.game_over = true;
     }
 
-   
-
     Ok(())
   }
 
 
   fn draw(&mut self, _ctx: &mut Context) -> GameResult {
 
+    //the blue screen of celebration
+    if self.current_question_index > 14{
+      let dark_blue = graphics::Color::from_rgb(26, 51, 77);
+      graphics::clear(_ctx, dark_blue);
+
+      let text = graphics::Text::new(format!("Congratulations!You finished the game. \n Take your 100000 leva and go live your live"));
+      graphics::draw(_ctx,&text,DrawParam{dest:Point2{x: 200.0,y: 300.0},..Default::default()})?;
+      graphics::present(_ctx)?;
+
+      return Ok(());
+    }
+
+    //the blue screen of meh
     if self.game_over == true{
       let dark_blue = graphics::Color::from_rgb(26, 51, 77);
       graphics::clear(_ctx, dark_blue);
@@ -180,6 +201,10 @@ impl EventHandler for GameState {
 
     //draw the question
     self.current_question.draw(_ctx)?;
+
+    //draw the current score
+    let text = graphics::Text::new(format!("Score :{}",self.current_score));
+    graphics::draw(_ctx,&text,DrawParam{dest:Point2{x: 675.0,y: 20.0},..Default::default()})?;
 
     graphics::present(_ctx)?;
     Ok(())
