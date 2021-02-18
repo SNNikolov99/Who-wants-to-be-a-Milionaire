@@ -103,7 +103,7 @@ impl EventHandler for GameState {
     
     if self.current_question.correct_answer == self.question_marked{
         self.current_score =*score_board_iter.nth(self.current_question_index).unwrap();
-        //save the score after question 5,10 and play the saved score sound effect
+        //save the score after question 5,10 and play the saved=score sound effect
         match self.current_question_index{
           4 =>{
             self.saved_score = 500;
@@ -130,7 +130,10 @@ impl EventHandler for GameState {
           14 =>self.saved_score = 100000,
           _ => () //do nothing
         }
-
+        //play the win sound and wait for 2 seconds
+        if self.current_question_index != 4 && self.current_question_index != 9{
+        self.assets.right_question_sound.play();
+        }
         ggez::timer::sleep(std::time::Duration::new(2,0));
         //check if next question exists
         let next_question = self.questions.next();
@@ -148,6 +151,9 @@ impl EventHandler for GameState {
     else{
       ggez::timer::sleep(std::time::Duration::new(1,0));
       self.game_over = true;
+      self.assets.main_theme.stop();
+      self.assets.wrong_question_sound.play();
+      
     }
 
     Ok(())
