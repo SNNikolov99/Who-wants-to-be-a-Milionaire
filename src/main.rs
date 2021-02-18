@@ -17,6 +17,7 @@ struct GameState{
   game_over:bool,
   player_resigned:bool,
   has_won:bool,
+  right_answer:bool,
   current_score:u32,
   assets:Assets,
   questions:QuestionList,
@@ -29,7 +30,7 @@ struct GameState{
 
 
 impl GameState{
-  fn new(ctx: &mut Context, conf :&Conf)-> GameResult<GameState> {
+  fn new(ctx: &mut Context, _conf :&Conf)-> GameResult<GameState> {
     let _assets = Assets::new(ctx)?;
     let mut _questions = QuestionList::new();
     let  first_question =_questions.next().unwrap().clone();
@@ -39,10 +40,11 @@ impl GameState{
         game_over:false,
         player_resigned:false,
         has_won:false,
+        right_answer:false,
         current_score:0,
         assets:_assets,
         questions:_questions,
-        question_marked:'d',
+        question_marked:'0',
         current_question:first_question,
         current_question_index:0,
         saved_score:0,
@@ -52,6 +54,16 @@ impl GameState{
     Ok(gs)
   }
 
+  //play the saved score sound
+  fn play_sc_sound(& mut self){
+      let _=self.assets.saved_score_sound.play();
+      if self.assets.main_theme.playing() == true{
+            self.assets.main_theme.pause();
+            ggez::timer::sleep(std::time::Duration::new(6,0));
+            self.assets.saved_score_sound.stop();
+            let _ =self.assets.main_theme.play();
+          }
+      }
 }
 
 impl EventHandler for GameState {
@@ -67,10 +79,9 @@ impl EventHandler for GameState {
       _=> () 
     }
   }
+  
 
 
-
-  fn update(&mut self, ctx: &mut Context) -> GameResult {
     /*
     Алгоритъм:
       зарежда един въпрос заедно с 4 отговора.Зарежда също кой отговор е правилен.
@@ -78,81 +89,84 @@ impl EventHandler for GameState {
       Ако е верен,зарежда следващ въпрос и отговори,иначе спира играта. 
     
       */
-
-
+  fn update(&mut self, ctx: &mut Context) -> GameResult {
+    //draw the context before doing something
+    self.draw(ctx)?;
+    
+    //what happens if game is over
     if self.game_over == true{
       return Ok(());
     }
 
-  
+    //what happens if player resigns
     if self.player_resigned == true{
       self.saved_score = self.current_score;
       self.game_over = true;
       ggez::timer::sleep(std::time::Duration::new(2,0));//make the exit more smooth
+      self.assets.main_theme.stop();
+      let _=self.assets.resign_sound.play();
       return Ok(());
     }
-    
-    let score_board = vec!(0,50,100,200,500,750,1000,1500,2000,2500,5000,10000,20000,50000,100000);//question I gives score I
+
+    //question I gives score I
+    let score_board = vec!(0,50,100,200,500,750,1000,1500,2000,2500,5000,10000,20000,50000,100000);
     let mut score_board_iter = score_board.iter();
     
     //the game won t do anything if one of these keys isn t pressed
     while !is_key_pressed(ctx,KeyCode::A) && !is_key_pressed(ctx,KeyCode::B) &&
-          !is_key_pressed(ctx,KeyCode::C) && !is_key_pressed(ctx,KeyCode::D){
+          !is_key_pressed(ctx,KeyCode::C) && !is_key_pressed(ctx,KeyCode::D)
+          {
             return Ok(());
           }
     
+    //when the marked question is right
     if self.current_question.correct_answer == self.question_marked{
         self.current_score =*score_board_iter.nth(self.current_question_index).unwrap();
-        //save the score after question 5,10 and play the saved=score sound effect
+        //save the score after question 5,10 and play the saved_score sound effect
         match self.current_question_index{
           4 =>{
             self.saved_score = 500;
-            self.assets.saved_score_sound.play();
-            if self.assets.main_theme.playing() == true{
-              self.assets.main_theme.pause();
-              ggez::timer::sleep(std::time::Duration::new(6,0));
-              self.assets.saved_score_sound.stop();
-              self.assets.main_theme.play();
-
-            }
+            self.play_sc_sound();
+            
           },
           9 =>{
             self.saved_score = 2500;
-            self.assets.saved_score_sound.play();
-            if self.assets.main_theme.playing() == true{
-              self.assets.main_theme.pause();
-              ggez::timer::sleep(std::time::Duration::new(6,0));
-              self.assets.main_theme.play();
-              self.assets.saved_score_sound.stop();
-
-            }
+            self.play_sc_sound();
           },
           14 =>self.saved_score = 100000,
           _ => () //do nothing
         }
         //play the win sound and wait for 2 seconds
         if self.current_question_index != 4 && self.current_question_index != 9{
-        self.assets.right_question_sound.play();
+          ggez::timer::sleep(std::time::Duration::new(2,0));
+          self.right_answer = true;
+          let _ = self.assets.right_question_sound.play();
         }
-        ggez::timer::sleep(std::time::Duration::new(2,0));
+
         //check if next question exists
+        ggez::timer::sleep(std::time::Duration::new(1,0));
         let next_question = self.questions.next();
         match next_question {
-          Some(_) => self.current_question = next_question.unwrap(),
+          Some(_) => {
+            self.current_question = next_question.unwrap();
+            self.question_marked = '0'; // null the marked question
+            self.right_answer = false;
+          },
           None =>{
             self.has_won = true;
-            self.assets.win_sound.play();
+            let _ = self.assets.win_sound.play();
             self.assets.main_theme.stop();
           }
         }
         self.current_question_index +=1;
         
     }
+    //when the answer is wrong
     else{
-      ggez::timer::sleep(std::time::Duration::new(1,0));
+      ggez::timer::sleep(std::time::Duration::new(2,0));
       self.game_over = true;
       self.assets.main_theme.stop();
-      self.assets.wrong_question_sound.play();
+      let _= self.assets.wrong_question_sound.play();
       
     }
 
@@ -160,28 +174,29 @@ impl EventHandler for GameState {
   }
 
 
-  fn draw(&mut self, _ctx: &mut Context) -> GameResult {
+  fn draw(&mut self, ctx: &mut Context) -> GameResult {
 
     //the blue screen of celebration
     if self.has_won == true{
       let dark_blue = graphics::Color::from_rgb(26, 51, 77);
-      graphics::clear(_ctx, dark_blue);
+      graphics::clear(ctx, dark_blue);
 
       let text = graphics::Text::new(format!("Congratulations!You finished the game. \n Take your 100000 leva and go live your live"));
-      graphics::draw(_ctx,&text,DrawParam{dest:Point2{x: 200.0,y: 300.0},..Default::default()})?;
-      graphics::present(_ctx)?;
+      graphics::draw(ctx,&text,DrawParam{dest:Point2{x: 200.0,y: 300.0},..Default::default()})?;
+      graphics::present(ctx)?;
 
       return Ok(());
     }
 
+
     //the blue screen of meh
     if self.game_over == true{
       let dark_blue = graphics::Color::from_rgb(26, 51, 77);
-      graphics::clear(_ctx, dark_blue);
+      graphics::clear(ctx, dark_blue);
 
       let text = graphics::Text::new(format!("Game over!\n Your score is {}",self.saved_score));
-      graphics::draw(_ctx,&text,DrawParam{dest:Point2{x: 400.0,y: 300.0},..Default::default()})?;
-      graphics::present(_ctx)?;
+      graphics::draw(ctx,&text,DrawParam{dest:Point2{x: 350.0,y: 300.0},..Default::default()})?;
+      graphics::present(ctx)?;
 
       return Ok(());
     }
@@ -189,80 +204,139 @@ impl EventHandler for GameState {
 
     //draws the background
     let default = graphics::DrawParam::new();
-    graphics::draw(_ctx,&self.assets.background,default)?;
+    graphics::draw(ctx,&self.assets.background,default)?;
 
     //draws the question placeholder
     let question_rect = graphics::Mesh::new_rectangle(
-      _ctx,
+      ctx,
        DrawMode::fill(),
      Rect::new(60.0,300.0,680.0,80.0),
      Color::new(0.0,0.0,40.0,0.95))?;
-    graphics::draw(_ctx,&question_rect,DrawParam::default())?;
+    graphics::draw(ctx,&question_rect,DrawParam::default())?;
 
-    // answer placeholder
+    //draws an answer placeholder
     let answer_rect = graphics::Mesh::new_rectangle(
-      _ctx,
+      ctx,
        DrawMode::fill(),
       Rect::new(0.0,0.0,330.0,40.0),
-      Color::new(0.0,0.0,40.0,0.95))?;
+      Color::new(255.0,255.0,255.0,0.95))?;
 
 
     //draws the first answer placeholder
-    graphics::draw(_ctx,&answer_rect,DrawParam{
-      dest:Point2{x:60.0,y:400.0},
-      ..Default::default()
-    })?;
+    if self.question_marked =='a'{
+        graphics::draw(ctx,&answer_rect,DrawParam{
+          dest:Point2{x:60.0,y:400.0},
+          color:Color::from_rgb(255,157,0),
+          ..Default::default()
+          })?;
+      }
+    else{
+        graphics::draw(ctx,&answer_rect,DrawParam{
+          dest:Point2{x:60.0,y:400.0},
+          color:Color::from_rgb(0,0,40),
+          ..Default::default()
+        })?;
+      }
+  
 
     let sign_a = graphics::Text::new("a)");
-    graphics::draw(_ctx, &sign_a,DrawParam{
+    graphics::draw(ctx, &sign_a,DrawParam{
       dest:Point2{x:70.0,y:410.0},
+      
       ..Default::default()
     })?; 
 
     //draws the second answer placeholder
-    graphics::draw(_ctx,&answer_rect,DrawParam{
-      dest:Point2{x:410.0,y:400.0},
-      ..Default::default()
-    })?;
-
+    if self.question_marked =='b'{
+      graphics::draw(ctx,&answer_rect,DrawParam{
+        dest:Point2{x:410.0,y:400.0},
+        color:Color::from_rgb(255,157,0),
+        ..Default::default()
+      })?;
+    }
+    else{
+      graphics::draw(ctx,&answer_rect,DrawParam{
+        dest:Point2{x:410.0,y:400.0},
+        color:Color::from_rgb(0,0,40),
+        ..Default::default()
+      })?;
+    }
+    
+  
     let sign_b = graphics::Text::new("b)");
-    graphics::draw(_ctx, &sign_b,DrawParam{
+    graphics::draw(ctx, &sign_b,DrawParam{
       dest:Point2{x:420.0,y:410.0},
       ..Default::default()
     })?; 
 
      //draws the third answer placeholder
-    graphics::draw(_ctx,&answer_rect,DrawParam{
-      dest:Point2{x:60.0,y:450.0},
-      ..Default::default()
-    })?;
+     if self.question_marked =='c'{
+      graphics::draw(ctx,&answer_rect,DrawParam{
+        dest:Point2{x:60.0,y:450.0},
+        color:Color::from_rgb(255,157,0),
+        ..Default::default()
+      })?;
+     }
+     else{
+      graphics::draw(ctx,&answer_rect,DrawParam{
+        dest:Point2{x:60.0,y:450.0},
+        color:Color::from_rgb(0,0,40),
+        ..Default::default()
+      })?;
+    }
 
     let sign_c = graphics::Text::new("c)");
-    graphics::draw(_ctx, &sign_c,DrawParam{
+    graphics::draw(ctx, &sign_c,DrawParam{
       dest:Point2{x:70.0,y:460.0},
       ..Default::default()
     })?; 
 
      //draws the fourth answer placeholder
-    graphics::draw(_ctx,&answer_rect,DrawParam{
-      dest:Point2{x:410.0,y:450.0},
-      ..Default::default()
-    })?;
+    if self.question_marked =='d'{
+        graphics::draw(ctx,&answer_rect,DrawParam{
+          dest:Point2{x:410.0,y:450.0},
+          color:Color::from_rgb(225,157,0),
+          ..Default::default()
+        })?;
+        /*
+        if self.right_answer == true{
+          graphics::draw(ctx,&answer_rect,DrawParam{
+            dest:Point2{x:410.0,y:450.0},
+            color:Color::from_rgb(0,157,0),
+            ..Default::default()
+          })?;
+        }
+        else{
+          graphics::draw(ctx,&answer_rect,DrawParam{
+            dest:Point2{x:410.0,y:450.0},
+            color:Color::from_rgb(225,0,0),
+            ..Default::default()
+          })?;
+        }
+        */
+    }
+    else{
+      graphics::draw(ctx,&answer_rect,DrawParam{
+        dest:Point2{x:410.0,y:450.0},
+        color:Color::from_rgb(0,0,40),
+        ..Default::default()
+      })?;
 
+    }
     let sign_d = graphics::Text::new("d)");
-    graphics::draw(_ctx, &sign_d,DrawParam{
+    graphics::draw(ctx, &sign_d,DrawParam{
       dest:Point2{x:420.0,y:460.0},
       ..Default::default()
     })?; 
 
     //draw the question
-    self.current_question.draw(_ctx)?;
+    self.current_question.draw(ctx)?;
 
     //draw the current score
     let text = graphics::Text::new(format!("Score :{}",self.current_score));
-    graphics::draw(_ctx,&text,DrawParam{dest:Point2{x: 675.0,y: 20.0},..Default::default()})?;
+    graphics::draw(ctx,&text,DrawParam{dest:Point2{x: 675.0,y: 20.0},..Default::default()})?;
 
-    graphics::present(_ctx)?;
+    graphics::present(ctx)?;
     Ok(())
     
   } 
@@ -293,7 +367,7 @@ pub fn main() {
   let state = &mut GameState::new(ctx, &c).unwrap();
 
   //play the main theme
-  state.assets.main_theme.play();
+    let _= state.assets.main_theme.play();
  
   //run!
   event::run(ctx, event_loop, state).unwrap();
