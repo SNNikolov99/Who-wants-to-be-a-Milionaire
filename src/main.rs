@@ -103,10 +103,30 @@ impl EventHandler for GameState {
     
     if self.current_question.correct_answer == self.question_marked{
         self.current_score =*score_board_iter.nth(self.current_question_index).unwrap();
-        //save the score after question 5,10 and 15
+        //save the score after question 5,10 and play the saved score sound effect
         match self.current_question_index{
-          4 =>self.saved_score = 500,
-          9 =>self.saved_score = 2500,
+          4 =>{
+            self.saved_score = 500;
+            self.assets.saved_score_sound.play();
+            if self.assets.main_theme.playing() == true{
+              self.assets.main_theme.pause();
+              ggez::timer::sleep(std::time::Duration::new(6,0));
+              self.assets.saved_score_sound.stop();
+              self.assets.main_theme.play();
+
+            }
+          },
+          9 =>{
+            self.saved_score = 2500;
+            self.assets.saved_score_sound.play();
+            if self.assets.main_theme.playing() == true{
+              self.assets.main_theme.pause();
+              ggez::timer::sleep(std::time::Duration::new(6,0));
+              self.assets.main_theme.play();
+              self.assets.saved_score_sound.stop();
+
+            }
+          },
           14 =>self.saved_score = 100000,
           _ => () //do nothing
         }
@@ -116,7 +136,11 @@ impl EventHandler for GameState {
         let next_question = self.questions.next();
         match next_question {
           Some(_) => self.current_question = next_question.unwrap(),
-          None =>self.has_won = true,
+          None =>{
+            self.has_won = true;
+            self.assets.win_sound.play();
+            self.assets.main_theme.stop();
+          }
         }
         self.current_question_index +=1;
         
@@ -263,9 +287,8 @@ pub fn main() {
   let state = &mut GameState::new(ctx, &c).unwrap();
 
   //play the main theme
-  let mut main_theme = audio::Source::new(ctx,"/main theme.mp3").unwrap();
-  let _ = main_theme.play();
-
+  state.assets.main_theme.play();
+ 
   //run!
   event::run(ctx, event_loop, state).unwrap();
 }
