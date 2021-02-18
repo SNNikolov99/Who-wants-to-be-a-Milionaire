@@ -42,37 +42,37 @@ impl Question{
          let mut dr_answer4 = Text::new(self.answer_4.as_str());
 
         //set the bounds of the strings
-         dr_question.set_bounds(Point2{x:680.0,y:80.0},Align::Center);
-         dr_answer1.set_bounds(Point2{x:330.0,y:40.0}, Align::Center );
-         dr_answer2.set_bounds(Point2{x:330.0,y:40.0}, Align::Center );
-         dr_answer3.set_bounds(Point2{x:330.0,y:40.0}, Align::Center );
-         dr_answer4.set_bounds(Point2{x:330.0,y:40.0}, Align::Center );
+         dr_question.set_bounds(Point2{x:680.0,y:70.0},Align::Center);
+         dr_answer1.set_bounds(Point2{x:310.0,y:30.0}, Align::Center );
+         dr_answer2.set_bounds(Point2{x:310.0,y:30.0}, Align::Center );
+         dr_answer3.set_bounds(Point2{x:310.0,y:30.0}, Align::Center );
+         dr_answer4.set_bounds(Point2{x:310.0,y:30.0}, Align::Center );
 
          //draws the question
           graphics::draw(_ctx,&dr_question,DrawParam{
-              dest:Point2{x:60.0,y:300.0},
+              dest:Point2{x:60.0,y:310.0},
               ..Default::default()
           })?; 
           //draws the first answer 
           graphics::draw(_ctx,&dr_answer1,DrawParam{
-            dest:Point2{x:60.0,y:400.0},
+            dest:Point2{x:60.0,y:410.0},
             ..Default::default()
           })?;
           //draws the second answer 
           graphics::draw(_ctx,&dr_answer2,DrawParam{
-            dest:Point2{x:410.0,y:400.0},
+            dest:Point2{x:410.0,y:410.0},
             ..Default::default()
           })?;
       
            //draws the third answer 
           graphics::draw(_ctx,&dr_answer3,DrawParam{
-            dest:Point2{x:60.0,y:450.0},
+            dest:Point2{x:60.0,y:460.0},
             ..Default::default()
           })?;
       
            //draws the fourth answer 
           graphics::draw(_ctx,&dr_answer4,DrawParam{
-            dest:Point2{x:410.0,y:450.0},
+            dest:Point2{x:410.0,y:460.0},
             ..Default::default()
           })?;
 

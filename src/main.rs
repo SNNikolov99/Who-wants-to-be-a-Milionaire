@@ -3,7 +3,7 @@ use ggez::conf::{WindowMode,Conf};
 use ggez::event::{EventHandler,KeyCode,KeyMods};
 use ggez::graphics::{DrawParam,DrawMode,Rect,Color};
 use ggez::mint::Point2;
-use ggez::timer;
+use ggez::audio::SoundSource;
 use ggez::input::keyboard::is_key_pressed;
 
 use wwtm_project::source::Assets;
@@ -16,15 +16,14 @@ use std::path;
 struct GameState{
   game_over:bool,
   player_resigned:bool,
+  has_won:bool,
   current_score:u32,
   assets:Assets,
   questions:QuestionList,
-  screen_width: f32,
-  screen_height: f32,
   question_marked:char,
   current_question:Question,
   current_question_index:usize, // helps finding question score
-  saved_score:u32, //can 500,2500,100000 or the current_score if the player decides to resign
+  saved_score:u32, //cap 500,2500,100000 or the current_score if the player decides to resign
 
 }
 
@@ -34,19 +33,15 @@ impl GameState{
     let _assets = Assets::new(ctx)?;
     let mut _questions = QuestionList::new();
     let  first_question =_questions.next().unwrap().clone();
-
-   // let _score_board = vec!(0,50,100,200,500,750,1000,1500,2000,2500,5000,10000,20000,50000,100000);//question I gives score I
-  //  let mut _score_board_iter = _score_board.iter();
     
     let gs = Self
       {
         game_over:false,
         player_resigned:false,
+        has_won:false,
         current_score:0,
         assets:_assets,
         questions:_questions,
-        screen_height:conf.window_mode.height,
-        screen_width:conf.window_mode.width,
         question_marked:'d',
         current_question:first_question,
         current_question_index:0,
@@ -117,8 +112,14 @@ impl EventHandler for GameState {
         }
 
         ggez::timer::sleep(std::time::Duration::new(2,0));
-        self.current_question = self.questions.next().unwrap();
+        //check if next question exists
+        let next_question = self.questions.next();
+        match next_question {
+          Some(_) => self.current_question = next_question.unwrap(),
+          None =>self.has_won = true,
+        }
         self.current_question_index +=1;
+        
     }
     else{
       ggez::timer::sleep(std::time::Duration::new(1,0));
@@ -132,7 +133,7 @@ impl EventHandler for GameState {
   fn draw(&mut self, _ctx: &mut Context) -> GameResult {
 
     //the blue screen of celebration
-    if self.current_question_index > 14{
+    if self.has_won == true{
       let dark_blue = graphics::Color::from_rgb(26, 51, 77);
       graphics::clear(_ctx, dark_blue);
 
@@ -181,11 +182,24 @@ impl EventHandler for GameState {
       dest:Point2{x:60.0,y:400.0},
       ..Default::default()
     })?;
+
+    let sign_a = graphics::Text::new("a)");
+    graphics::draw(_ctx, &sign_a,DrawParam{
+      dest:Point2{x:70.0,y:410.0},
+      ..Default::default()
+    })?; 
+
     //draws the second answer placeholder
     graphics::draw(_ctx,&answer_rect,DrawParam{
       dest:Point2{x:410.0,y:400.0},
       ..Default::default()
     })?;
+
+    let sign_b = graphics::Text::new("b)");
+    graphics::draw(_ctx, &sign_b,DrawParam{
+      dest:Point2{x:420.0,y:410.0},
+      ..Default::default()
+    })?; 
 
      //draws the third answer placeholder
     graphics::draw(_ctx,&answer_rect,DrawParam{
@@ -193,11 +207,23 @@ impl EventHandler for GameState {
       ..Default::default()
     })?;
 
+    let sign_c = graphics::Text::new("c)");
+    graphics::draw(_ctx, &sign_c,DrawParam{
+      dest:Point2{x:70.0,y:460.0},
+      ..Default::default()
+    })?; 
+
      //draws the fourth answer placeholder
     graphics::draw(_ctx,&answer_rect,DrawParam{
       dest:Point2{x:410.0,y:450.0},
       ..Default::default()
     })?;
+
+    let sign_d = graphics::Text::new("d)");
+    graphics::draw(_ctx, &sign_d,DrawParam{
+      dest:Point2{x:420.0,y:460.0},
+      ..Default::default()
+    })?; 
 
     //draw the question
     self.current_question.draw(_ctx)?;
@@ -234,7 +260,11 @@ pub fn main() {
   }
   
   //load the state
-  let state = &mut GameState::new(ctx, &c).unwrap(); 
+  let state = &mut GameState::new(ctx, &c).unwrap();
+
+  //play the main theme
+  let mut main_theme = audio::Source::new(ctx,"/main theme.mp3").unwrap();
+  let _ = main_theme.play();
 
   //run!
   event::run(ctx, event_loop, state).unwrap();
