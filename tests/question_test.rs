@@ -28,8 +28,19 @@ fn test_question() {
 fn test_question_list() {
 
     let mut question_list = QuestionList::new();
-    assert_eq!("Коя година сме сега?",question_list.next().unwrap().question);
-    assert_eq!("Колко месеца има в годината?",question_list.next().unwrap().question);
-
+    let mut next_question = question_list.next().unwrap();
+    assert_eq!("Коя година сме сега?",next_question.question);
+    assert_eq!("2018",next_question.answer_1);
+    assert_eq!("2019",next_question.answer_2);
+    assert_eq!("2020",next_question.answer_3);
+    assert_eq!("2021",next_question.answer_4);
+    assert_eq!('d',next_question.correct_answer);
+    next_question = question_list.next().unwrap();
+    assert_eq!("Колко месеца има в годината?",next_question.question);
+    assert_eq!("12",next_question.answer_1);
+    assert_eq!("10",next_question.answer_2);
+    assert_eq!("11",next_question.answer_3);
+    assert_eq!("13",next_question.answer_4);
+    assert_eq!('a',next_question.correct_answer);
 
 }

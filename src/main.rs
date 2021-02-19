@@ -2,7 +2,7 @@ use ggez::*;
 use ggez::conf::{WindowMode,Conf};
 use ggez::event::{EventHandler,KeyCode,KeyMods};
 use ggez::graphics::{DrawParam,DrawMode,Rect,Color};
-use ggez::mint::Point2;
+use ggez::mint::{Point2,Vector2};
 use ggez::audio::SoundSource;
 use ggez::input::keyboard::is_key_pressed;
 
@@ -17,7 +17,7 @@ struct GameState{
   game_over:bool,
   player_resigned:bool,
   has_won:bool,
-  right_answer:bool,
+  is_marked:bool,
   current_score:u32,
   assets:Assets,
   questions:QuestionList,
@@ -40,7 +40,7 @@ impl GameState{
         game_over:false,
         player_resigned:false,
         has_won:false,
-        right_answer:false,
+        is_marked:false,
         current_score:0,
         assets:_assets,
         questions:_questions,
@@ -70,17 +70,28 @@ impl EventHandler for GameState {
 
   fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods,_repeat:bool){
     match keycode {
-      event::KeyCode::A =>self.question_marked = 'a',
-      event::KeyCode::B =>self.question_marked = 'b',
-      event::KeyCode::C =>self.question_marked = 'c',
-      event::KeyCode::D =>self.question_marked = 'd',
+      event::KeyCode::A =>{
+        self.is_marked = true;
+        self.question_marked = 'a';
+      },
+      event::KeyCode::B =>{
+        self.is_marked = true;
+        self.question_marked = 'b';
+      },
+      event::KeyCode::C =>{
+        self.is_marked = true;
+        self.question_marked = 'c';
+      },
+      event::KeyCode::D =>{
+        self.is_marked = true;
+        self.question_marked = 'd';
+      },
       event::KeyCode::R =>self.player_resigned  = true,
       event::KeyCode::Escape => event::quit(ctx),
       _=> () 
     }
   }
   
-
 
     /*
     Алгоритъм:
@@ -136,10 +147,10 @@ impl EventHandler for GameState {
           14 =>self.saved_score = 100000,
           _ => () //do nothing
         }
+        
         //play the win sound and wait for 2 seconds
         if self.current_question_index != 4 && self.current_question_index != 9{
           ggez::timer::sleep(std::time::Duration::new(2,0));
-          self.right_answer = true;
           let _ = self.assets.right_question_sound.play();
         }
 
@@ -150,7 +161,7 @@ impl EventHandler for GameState {
           Some(_) => {
             self.current_question = next_question.unwrap();
             self.question_marked = '0'; // null the marked question
-            self.right_answer = false;
+           
           },
           None =>{
             self.has_won = true;
@@ -181,8 +192,11 @@ impl EventHandler for GameState {
       let dark_blue = graphics::Color::from_rgb(26, 51, 77);
       graphics::clear(ctx, dark_blue);
 
-      let text = graphics::Text::new(format!("Congratulations!You finished the game. \n Take your 100000 leva and go live your live"));
-      graphics::draw(ctx,&text,DrawParam{dest:Point2{x: 200.0,y: 300.0},..Default::default()})?;
+      let text = graphics::Text::new(format!("Congratulations!You finished the game.\nTake your 100000 leva and go live your live"));
+      graphics::draw(ctx,&text,DrawParam
+        {dest:Point2{x: 200.0,y: 275.0},
+        scale:Vector2{x:1.25,y:1.25},
+        ..Default::default()})?;
       graphics::present(ctx)?;
 
       return Ok(());
@@ -194,8 +208,11 @@ impl EventHandler for GameState {
       let dark_blue = graphics::Color::from_rgb(26, 51, 77);
       graphics::clear(ctx, dark_blue);
 
-      let text = graphics::Text::new(format!("Game over!\n Your score is {}",self.saved_score));
-      graphics::draw(ctx,&text,DrawParam{dest:Point2{x: 350.0,y: 300.0},..Default::default()})?;
+      let text = graphics::Text::new(format!("Game over!\nYour score is {}",self.saved_score));
+      graphics::draw(ctx,&text,DrawParam
+        {dest:Point2{x: 350.0,y: 300.0},
+          scale:Vector2{x:1.25,y:1.25},
+        ..Default::default()})?;
       graphics::present(ctx)?;
 
       return Ok(());
@@ -298,22 +315,22 @@ impl EventHandler for GameState {
           color:Color::from_rgb(225,157,0),
           ..Default::default()
         })?;
-        /*
-        if self.right_answer == true{
+        
+        if  self.is_marked == true{
           graphics::draw(ctx,&answer_rect,DrawParam{
             dest:Point2{x:410.0,y:450.0},
             color:Color::from_rgb(0,157,0),
             ..Default::default()
           })?;
         }
-        else{
+        else if self.is_marked == true{
           graphics::draw(ctx,&answer_rect,DrawParam{
             dest:Point2{x:410.0,y:450.0},
             color:Color::from_rgb(225,0,0),
             ..Default::default()
           })?;
         }
-        */
+        
     }
     else{
       graphics::draw(ctx,&answer_rect,DrawParam{
