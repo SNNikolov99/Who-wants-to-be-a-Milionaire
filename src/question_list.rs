@@ -2,7 +2,24 @@ use crate::question::Question;
 use std::io::BufReader;
 use std::io::BufRead;
 use std::fs::File;
+use rand::Rng;
 
+fn choose_file() -> Option<File>{
+    let mut rng = rand::thread_rng();
+    let random_number = rng.gen_range(1..3);
+    let f:File;
+    match random_number{
+        1 => { 
+              f = File::open("C:/Users/Симеон/Desktop/Rust/wwtm_project/resources/question_data1.txt").unwrap();
+              Some(f)
+              },
+        2 => {
+            f = File::open("C:/Users/Симеон/Desktop/Rust/wwtm_project/resources/question_data2.txt").unwrap();
+            Some(f)
+             },
+        _ => None
+    }
+  }
 
 pub struct QuestionList{
    pub question_list:Vec<Question>,
@@ -10,8 +27,10 @@ pub struct QuestionList{
 }
 
 impl QuestionList{
+
     pub fn new() ->Self{
-        let f = File::open("C:/Users/Симеон/Desktop/Rust/wwtm_project/resources/question_data.txt").unwrap();
+        
+        let f = choose_file().unwrap();
         let reader = BufReader::new(f);
         let mut _question_list = Vec::<Question>::new();
 
