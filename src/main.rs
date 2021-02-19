@@ -17,7 +17,7 @@ struct GameState{
   game_over:bool,
   player_resigned:bool,
   has_won:bool,
-  answer_color:String,
+  answer_color:String,//the colour with which an answer will be marked when it is right, wrong, or currently selected
   current_score:u32,
   assets:Assets,
   questions:QuestionList,
@@ -139,6 +139,7 @@ impl EventHandler for GameState {
           4 =>{
             self.saved_score = 500;
             ggez::timer::sleep(std::time::Duration::new(2,0));
+            //draw the change of colour
             self.answer_color = "green".to_string();
             self.draw(ctx)?;
             self.play_sc_sound();
@@ -147,6 +148,7 @@ impl EventHandler for GameState {
           9 =>{
             self.saved_score = 2500;
             ggez::timer::sleep(std::time::Duration::new(2,0));
+            //draw the change of colour
             self.answer_color = "green".to_string();
             self.draw(ctx)?;
             self.play_sc_sound();
@@ -158,6 +160,7 @@ impl EventHandler for GameState {
         //play the win sound and wait for 2 seconds
         if self.current_question_index != 4 && self.current_question_index != 9{
           ggez::timer::sleep(std::time::Duration::new(2,0));
+          //draw the change of colour
           self.answer_color = "green".to_string();
           self.draw(ctx)?;
           let _ = self.assets.right_question_sound.play();
@@ -170,10 +173,11 @@ impl EventHandler for GameState {
           Some(_) => {
             self.current_question = next_question.unwrap();
             self.question_marked = '0'; // null the marked question
-            self.answer_color = "blue".to_string();
+            self.answer_color = "blue".to_string();//return the colour to blue
            
           },
           None =>{
+            //no more questions in the list so the player has won the game
             self.has_won = true;
             let _ = self.assets.win_sound.play();
             self.assets.main_theme.stop();
@@ -184,12 +188,13 @@ impl EventHandler for GameState {
     }
     //when the answer is wrong
     else{
+      //draw the change of colour
       self.answer_color = "red".to_string();
       ggez::timer::sleep(std::time::Duration::new(2,0));
       self.draw(ctx)?;
       self.assets.main_theme.stop();
       let _= self.assets.wrong_question_sound.play();
-      ggez::timer::sleep(std::time::Duration::new(1,0));
+      ggez::timer::sleep(std::time::Duration::new(1,500));
       self.game_over = true;
        
     }
@@ -233,8 +238,7 @@ impl EventHandler for GameState {
 
 
     //draws the background
-    let default = graphics::DrawParam::new();
-    graphics::draw(ctx,&self.assets.background,default)?;
+    graphics::draw(ctx,&self.assets.background,DrawParam{..Default::default()})?;
 
     //draws the question placeholder
     let question_rect = graphics::Mesh::new_rectangle(
@@ -252,7 +256,7 @@ impl EventHandler for GameState {
       Color::new(255.0,255.0,255.0,0.95))?;
 
 
-    //draws the first answer placeholder
+    //draws the first answer placeholder and its marking logic
     if self.answer_color == "yellow" && self.question_marked == 'a'{
       graphics::draw(ctx,&answer_rect,DrawParam{
         dest:Point2{x:60.0,y:400.0},
@@ -289,6 +293,7 @@ impl EventHandler for GameState {
       
       ..Default::default()
     })?; 
+
 
     //draws the second answer placeholder
     if self.answer_color == "yellow" && self.question_marked == 'b'{
@@ -327,6 +332,7 @@ impl EventHandler for GameState {
       ..Default::default()
     })?; 
 
+
      //draws the third answer placeholder
     if self.answer_color == "yellow" && self.question_marked == 'c' {
       graphics::draw(ctx,&answer_rect,DrawParam{
@@ -362,6 +368,7 @@ impl EventHandler for GameState {
       dest:Point2{x:70.0,y:460.0},
       ..Default::default()
     })?; 
+
 
      //draws the fourth answer placeholder
     if self.answer_color == "yellow" && self.question_marked == 'd'{
