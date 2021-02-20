@@ -4,19 +4,24 @@ use std::io::BufRead;
 use std::fs::File;
 use rand::Rng;
 
-fn choose_file() -> Option<File>{
+//a function which randomly chooses a question list
+fn file_selector() -> Option<File>{
     let mut rng = rand::thread_rng();
-    let random_number = rng.gen_range(1..3);
+    let random_number = rng.gen_range(1..4);
     let f:File;
     match random_number{
         1 => { 
-              f = File::open("C:/Users/Симеон/Desktop/Rust/wwtm_project/resources/question_data1.txt").unwrap();
-              Some(f)
+                f = File::open("C:/Users/Симеон/Desktop/Rust/wwtm_project/resources/question_data1.txt").unwrap();
+                Some(f)
               },
         2 => {
-            f = File::open("C:/Users/Симеон/Desktop/Rust/wwtm_project/resources/question_data2.txt").unwrap();
-            Some(f)
+                f = File::open("C:/Users/Симеон/Desktop/Rust/wwtm_project/resources/question_data2.txt").unwrap();
+                Some(f)
              },
+        3 =>{
+                f = File::open("C:/Users/Симеон/Desktop/Rust/wwtm_project/resources/question_data3.txt").unwrap();
+                Some(f)
+             },     
         _ => None
     }
   }
@@ -30,7 +35,7 @@ impl QuestionList{
 
     pub fn new() ->Self{
         
-        let f = choose_file().unwrap();
+        let f = file_selector().unwrap();
         let reader = BufReader::new(f);
         let mut _question_list = Vec::<Question>::new();
 

@@ -137,8 +137,9 @@ impl EventHandler for GameState {
         //save the score after question 5,10 and play the saved_score sound effect
         match self.current_question_index{
           4 =>{
-            self.saved_score = 500;
             ggez::timer::sleep(std::time::Duration::new(2,0));
+            self.saved_score = 500;
+            self.draw(ctx)?;
             //draw the change of colour
             self.answer_color = "green".to_string();
             self.draw(ctx)?;
@@ -146,8 +147,8 @@ impl EventHandler for GameState {
             
           },
           9 =>{
-            self.saved_score = 2500;
             ggez::timer::sleep(std::time::Duration::new(2,0));
+            self.saved_score = 2500;
             //draw the change of colour
             self.answer_color = "green".to_string();
             self.draw(ctx)?;
@@ -228,7 +229,7 @@ impl EventHandler for GameState {
 
       let text = graphics::Text::new(format!("Game over!\nYour score is {}",self.saved_score));
       graphics::draw(ctx,&text,DrawParam
-        {dest:Point2{x: 350.0,y: 300.0},
+        {dest:Point2{x: 325.0,y: 270.0},
           scale:Vector2{x:1.25,y:1.25},
         ..Default::default()})?;
       graphics::present(ctx)?;
@@ -406,12 +407,20 @@ impl EventHandler for GameState {
       ..Default::default()
     })?; 
 
+     //draw a message showing saved scores
+     if self.current_score == 500 && self.current_score == 2500{
+      let message = graphics::Text::new(format!("You now have capped {} leva",self.current_score));
+      graphics::draw(ctx,&message,DrawParam{dest:Point2{x: 175.0,y: 120.0},..Default::default()})?;
+     
+    }
+
     //draws the question
     self.current_question.draw(ctx)?;
 
     //draw the current score
-    let text = graphics::Text::new(format!("Score :{}",self.current_score));
+    let text = graphics::Text::new(format!("Score: {}",self.current_score));
     graphics::draw(ctx,&text,DrawParam{dest:Point2{x: 675.0,y: 20.0},..Default::default()})?;
+
 
     graphics::present(ctx)?;
     Ok(())
