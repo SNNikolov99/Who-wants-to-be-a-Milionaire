@@ -13,18 +13,28 @@ use wwtm_project::question::Question;
 use std::env;
 use std::path;
 
+enum AnswerState{
+  Marked,
+  NotMarked,
+  Correct,
+  Wrong,
+}
+
+
 struct GameState{
   game_over:bool,
   player_resigned:bool,
   has_won:bool,
-  answer_color:String,//the colour with which an answer will be marked when it is right, wrong, or currently selected
   current_score:u32,
   assets:Assets,
   questions:QuestionList,
-  question_marked:char,
+  answer_state:AnswerState,
+  answer_marked:char,
   current_question:Question,
   current_question_index:usize, // helps finding question score
   saved_score:u32, //cap 500,2500,100000 or the current_score if the player decides to resign
+  //time_marked:f32,
+
 
 }
 
@@ -40,11 +50,11 @@ impl GameState{
         game_over:false,
         player_resigned:false,
         has_won:false,
-        answer_color:"blue".to_string(),
         current_score:0,
         assets:_assets,
         questions:_questions,
-        question_marked:'0',
+        answer_state:AnswerState::NotMarked,
+        answer_marked:' ',
         current_question:first_question,
         current_question_index:0,
         saved_score:0,
@@ -71,20 +81,20 @@ impl EventHandler for GameState {
   fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods,_repeat:bool){
     match keycode {
       event::KeyCode::A =>{
-        self.answer_color = "yellow".to_string();
-        self.question_marked = 'a';
+        self.answer_state = AnswerState::Marked;
+        self.answer_marked = 'a';
       },
       event::KeyCode::B =>{
-        self.answer_color = "yellow".to_string();
-        self.question_marked = 'b';
+        self.answer_state = AnswerState::Marked;
+        self.answer_marked = 'b';
       },
       event::KeyCode::C =>{
-        self.answer_color = "yellow".to_string();
-        self.question_marked = 'c';
+        self.answer_state = AnswerState::Marked;
+        self.answer_marked = 'c';
       },
       event::KeyCode::D =>{
-        self.answer_color = "yellow".to_string();
-        self.question_marked = 'd';
+        self.answer_state = AnswerState::Marked;
+        self.answer_marked = 'd';
       },
       event::KeyCode::R =>self.player_resigned  = true,
       event::KeyCode::Escape => event::quit(ctx),
@@ -132,7 +142,8 @@ impl EventHandler for GameState {
     
 
     //when the marked question is right
-    if self.current_question.correct_answer == self.question_marked{
+    if self.current_question.correct_answer == self.answer_marked{
+      
         self.current_score =*score_board_iter.nth(self.current_question_index).unwrap();
         //save the score after question 5,10 and play the saved_score sound effect
         match self.current_question_index{
@@ -141,7 +152,7 @@ impl EventHandler for GameState {
             self.saved_score = 500;
             self.draw(ctx)?;
             //draw the change of colour
-            self.answer_color = "green".to_string();
+            self.answer_state = AnswerState::Correct;
             self.draw(ctx)?;
             self.play_sc_sound();
             
@@ -150,7 +161,7 @@ impl EventHandler for GameState {
             ggez::timer::sleep(std::time::Duration::new(2,0));
             self.saved_score = 2500;
             //draw the change of colour
-            self.answer_color = "green".to_string();
+            self.answer_state =  AnswerState::Correct;
             self.draw(ctx)?;
             self.play_sc_sound();
           },
@@ -162,7 +173,7 @@ impl EventHandler for GameState {
         if self.current_question_index != 4 && self.current_question_index != 9{
           ggez::timer::sleep(std::time::Duration::new(2,0));
           //draw the change of colour
-          self.answer_color = "green".to_string();
+          self.answer_state =  AnswerState::Correct;
           self.draw(ctx)?;
           let _ = self.assets.right_question_sound.play();
         }
@@ -173,8 +184,8 @@ impl EventHandler for GameState {
         match next_question {
           Some(_) => {
             self.current_question = next_question.unwrap();
-            self.question_marked = '0'; // null the marked question
-            self.answer_color = "blue".to_string();//return the colour to blue
+            self.answer_marked = '0'; // null the marked question
+            self.answer_state =  AnswerState::NotMarked;//return the colour to blue
            
           },
           None =>{
@@ -190,7 +201,7 @@ impl EventHandler for GameState {
     //when the answer is wrong
     else{
       //draw the change of colour
-      self.answer_color = "red".to_string();
+      self.answer_state =  AnswerState::Wrong;
       ggez::timer::sleep(std::time::Duration::new(2,0));
       self.draw(ctx)?;
       self.assets.main_theme.stop();
@@ -256,37 +267,30 @@ impl EventHandler for GameState {
       Rect::new(0.0,0.0,330.0,40.0),
       Color::new(255.0,255.0,255.0,0.95))?;
 
-
-    //draws the first answer placeholder and its marking logic
-    if self.answer_color == "yellow" && self.question_marked == 'a'{
-      graphics::draw(ctx,&answer_rect,DrawParam{
-        dest:Point2{x:60.0,y:400.0},
-        color:Color::from_rgb(225,157,0),
-        ..Default::default()
-      })?;
-    }
-    else if  self.answer_color == "green" && self.question_marked =='a' {
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:60.0,y:400.0},
-          color:Color::from_rgb(0,157,0),
-          ..Default::default()
-      })?;
-    }
-    else if  self.answer_color == "red" && self.question_marked =='a' {
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:60.0,y:400.0},
-          color:Color::from_rgb(225,0,0),
-          ..Default::default()
-        })?;
-    }    
-    else{
-      graphics::draw(ctx,&answer_rect,DrawParam{
+    //draw the answer placeholders
+    graphics::draw(ctx,&answer_rect,DrawParam{
         dest:Point2{x:60.0,y:400.0},
         color:Color::from_rgb(0,0,40),
         ..Default::default()
+      })?;
+
+    graphics::draw(ctx,&answer_rect,DrawParam{
+        dest:Point2{x:410.0,y:400.0},
+        color:Color::from_rgb(0,0,40),
+        ..Default::default()
+      })?;
+
+    graphics::draw(ctx,&answer_rect,DrawParam{
+        dest:Point2{x:60.0,y:450.0},
+        color:Color::from_rgb(0,0,40),
+        ..Default::default()
+      })?;
+
+    graphics::draw(ctx,&answer_rect,DrawParam{
+      dest:Point2{x:410.0,y:450.0},
+      color:Color::from_rgb(0,0,40),
+      ..Default::default()
     })?;
-  }
-  
 
     let sign_a = graphics::Text::new("a)");
     graphics::draw(ctx, &sign_a,DrawParam{
@@ -295,74 +299,11 @@ impl EventHandler for GameState {
       ..Default::default()
     })?; 
 
-
-    //draws the second answer placeholder
-    if self.answer_color == "yellow" && self.question_marked == 'b'{
-      graphics::draw(ctx,&answer_rect,DrawParam{
-        dest:Point2{x:410.0,y:400.0},
-        color:Color::from_rgb(225,157,0),
-        ..Default::default()
-      })?;
-    }
-    else if  self.answer_color == "green" && self.question_marked =='b' {
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:410.0,y:400.0},
-          color:Color::from_rgb(0,157,0),
-          ..Default::default()
-      })?;
-    }
-    else if  self.answer_color == "red" && self.question_marked =='b' {
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:410.0,y:400.0},
-          color:Color::from_rgb(225,0,0),
-          ..Default::default()
-        })?;
-    }    
-    else{
-      graphics::draw(ctx,&answer_rect,DrawParam{
-        dest:Point2{x:410.0,y:400.0},
-        color:Color::from_rgb(0,0,40),
-      ..Default::default()
-    })?;
-  }
-    
-  
     let sign_b = graphics::Text::new("b)");
     graphics::draw(ctx, &sign_b,DrawParam{
       dest:Point2{x:420.0,y:410.0},
       ..Default::default()
     })?; 
-
-
-     //draws the third answer placeholder
-    if self.answer_color == "yellow" && self.question_marked == 'c' {
-      graphics::draw(ctx,&answer_rect,DrawParam{
-        dest:Point2{x:60.0,y:450.0},
-        color:Color::from_rgb(225,157,0),
-        ..Default::default()
-      })?;
-    }
-    else if  self.answer_color == "green" && self.question_marked == 'c' {
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:60.0,y:450.0},
-          color:Color::from_rgb(0,157,0),
-          ..Default::default()
-      })?;
-    }
-    else if  self.answer_color == "red" && self.question_marked == 'c' {
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:60.0,y:450.0},
-          color:Color::from_rgb(225,0,0),
-          ..Default::default()
-        })?;
-    }    
-    else{
-      graphics::draw(ctx,&answer_rect,DrawParam{
-        dest:Point2{x:60.0,y:450.0},
-        color:Color::from_rgb(0,0,40),
-        ..Default::default()
-      })?;
-    }
 
     let sign_c = graphics::Text::new("c)");
     graphics::draw(ctx, &sign_c,DrawParam{
@@ -370,43 +311,107 @@ impl EventHandler for GameState {
       ..Default::default()
     })?; 
 
-
-     //draws the fourth answer placeholder
-    if self.answer_color == "yellow" && self.question_marked == 'd'{
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:410.0,y:450.0},
-          color:Color::from_rgb(225,157,0),
-          ..Default::default()
-        })?;
-    }
-    else if  self.answer_color == "green" && self.question_marked =='d' {
-          graphics::draw(ctx,&answer_rect,DrawParam{
-            dest:Point2{x:410.0,y:450.0},
-            color:Color::from_rgb(0,157,0),
-            ..Default::default()
-        })?;
-    }
-    else if  self.answer_color == "red" && self.question_marked =='d' {
-          graphics::draw(ctx,&answer_rect,DrawParam{
-            dest:Point2{x:410.0,y:450.0},
-            color:Color::from_rgb(225,0,0),
-            ..Default::default()
-          })?;
-    }    
-    else{
-      graphics::draw(ctx,&answer_rect,DrawParam{
-        dest:Point2{x:410.0,y:450.0},
-        color:Color::from_rgb(0,0,40),
-        ..Default::default()
-      })?;
-    }
-
     let sign_d = graphics::Text::new("d)");
     graphics::draw(ctx, &sign_d,DrawParam{
       dest:Point2{x:420.0,y:460.0},
       ..Default::default()
     })?; 
 
+
+  //marking logic  
+  if self.answer_marked == 'a'{
+      match self.answer_state{
+        AnswerState::Marked =>
+          graphics::draw(ctx,&answer_rect,DrawParam{
+            dest:Point2{x:60.0,y:400.0},
+            color:Color::from_rgb(225,157,0),
+            ..Default::default()
+          })?,
+        AnswerState::Correct =>
+          graphics::draw(ctx,&answer_rect,DrawParam{
+            dest:Point2{x:60.0,y:400.0},
+            color:Color::from_rgb(0,157,0),
+            ..Default::default()
+          })?,
+        AnswerState::Wrong =>
+          graphics::draw(ctx,&answer_rect,DrawParam{
+            dest:Point2{x:60.0,y:400.0},
+            color:Color::from_rgb(225,0,0),
+            ..Default::default()
+          })?,
+        _ => (),  
+      }
+  }
+  else if self.answer_marked == 'b' {
+    match self.answer_state{
+      AnswerState::Marked =>
+        graphics::draw(ctx,&answer_rect,DrawParam{
+          dest:Point2{x:410.0,y:400.0},
+          color:Color::from_rgb(225,157,0),
+          ..Default::default()
+        })?,
+      AnswerState::Correct =>
+        graphics::draw(ctx,&answer_rect,DrawParam{
+          dest:Point2{x:410.0,y:400.0},
+          color:Color::from_rgb(0,157,0),
+          ..Default::default()
+        })?,
+      AnswerState::Wrong =>
+        graphics::draw(ctx,&answer_rect,DrawParam{
+          dest:Point2{x:410.0,y:400.0},
+          color:Color::from_rgb(225,0,0),
+          ..Default::default()
+        })?,
+      _ => (),
+    }
+  }
+  else if self.answer_marked == 'c'{
+    match self.answer_state{
+      AnswerState::Marked =>
+        graphics::draw(ctx,&answer_rect,DrawParam{
+          dest:Point2{x:60.0,y:450.0},
+          color:Color::from_rgb(225,157,0),
+          ..Default::default()
+        })?,
+      AnswerState::Correct =>
+        graphics::draw(ctx,&answer_rect,DrawParam{
+          dest:Point2{x:60.0,y:450.0},
+          color:Color::from_rgb(0,157,0),
+          ..Default::default()
+        })?,
+      AnswerState::Wrong =>
+        graphics::draw(ctx,&answer_rect,DrawParam{
+          dest:Point2{x:60.0,y:450.0},
+          color:Color::from_rgb(225,0,0),
+          ..Default::default()
+        })?,
+      _ => (),  
+    }
+  }
+  else{
+    match self.answer_state{
+      AnswerState::Marked =>
+        graphics::draw(ctx,&answer_rect,DrawParam{
+          dest:Point2{x:410.0,y:450.0},
+          color:Color::from_rgb(225,157,0),
+          ..Default::default()
+        })?,
+      AnswerState::Correct =>
+        graphics::draw(ctx,&answer_rect,DrawParam{
+          dest:Point2{x:410.0,y:450.0},
+          color:Color::from_rgb(0,157,0),
+          ..Default::default()
+        })?,
+      AnswerState::Wrong =>
+        graphics::draw(ctx,&answer_rect,DrawParam{
+          dest:Point2{x:410.0,y:450.0},
+          color:Color::from_rgb(225,0,0),
+          ..Default::default()
+        })?,
+      _ => (),  
+    }
+  }
+   
      //draw a message showing saved scores
      if self.current_score == 500 && self.current_score == 2500{
       let message = graphics::Text::new(format!("You now have capped {} leva",self.current_score));
