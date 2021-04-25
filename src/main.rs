@@ -4,7 +4,7 @@ use ggez::event::{EventHandler,KeyCode,KeyMods};
 use ggez::graphics::{DrawParam,DrawMode,Rect,Color};
 use ggez::mint::{Point2,Vector2};
 use ggez::audio::SoundSource;
-use ggez::input::keyboard::is_key_pressed;
+use ggez::input::{keyboard::is_key_pressed,mouse};
 
 use wwtm_project::source::Assets;
 use wwtm_project::question_list::QuestionList;
@@ -33,6 +33,7 @@ struct GameState{
   current_question:Question,
   current_question_index:usize, // helps finding question score
   saved_score:u32, //cap 500,2500,100000 or the current_score if the player decides to resign
+  score_board:Vec<u32>,
   //time_marked:f32,
 
 
@@ -58,6 +59,7 @@ impl GameState{
         current_question:first_question,
         current_question_index:0,
         saved_score:0,
+        score_board: vec!(0,50,100,200,300,500,750,1000,1500,2000,2500,5000,10000,25000,50000,100000),
         
       };
 
@@ -80,22 +82,6 @@ impl EventHandler for GameState {
 
   fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods,_repeat:bool){
     match keycode {
-      event::KeyCode::A =>{
-        self.answer_state = AnswerState::Marked;
-        self.answer_marked = 'a';
-      },
-      event::KeyCode::B =>{
-        self.answer_state = AnswerState::Marked;
-        self.answer_marked = 'b';
-      },
-      event::KeyCode::C =>{
-        self.answer_state = AnswerState::Marked;
-        self.answer_marked = 'c';
-      },
-      event::KeyCode::D =>{
-        self.answer_state = AnswerState::Marked;
-        self.answer_marked = 'd';
-      },
       event::KeyCode::R =>self.player_resigned  = true,
       event::KeyCode::Escape => event::quit(ctx),
       _=> () 
@@ -111,8 +97,6 @@ impl EventHandler for GameState {
     
       */
   fn update(&mut self, ctx: &mut Context) -> GameResult {
-    //draw the context before doing something
-    self.draw(ctx)?;
     
     //what happens if game is over
     if self.game_over == true{
@@ -129,22 +113,41 @@ impl EventHandler for GameState {
       return Ok(());
     }
 
-    //question I gives score I
-    let score_board = vec!(0,50,100,200,500,750,1000,1500,2000,2500,5000,10000,20000,50000,100000);
-    let mut score_board_iter = score_board.iter();
     
-    //the game won t do anything if one of these keys isn t pressed
-    while !is_key_pressed(ctx,KeyCode::A) && !is_key_pressed(ctx,KeyCode::B) &&
-          !is_key_pressed(ctx,KeyCode::C) && !is_key_pressed(ctx,KeyCode::D)
-          {
-            return Ok(());
-          }
-    
+    //the game won`t do anything if the mouse isn`t pressed
+
+    while  mouse::button_pressed(ctx, mouse::MouseButton::Left) == false{
+      return Ok(());
+    }
+
+    let mouse_pos = mouse::position(ctx);
+
+    if  mouse_pos.x >= 60.0 && mouse_pos.x <=390.0 && mouse_pos.y >= 400.0 && mouse_pos.y <= 440.0{
+      self.answer_state = AnswerState::Marked;
+      self.answer_marked = 'a';
+    }
+    else if  mouse_pos.x >= 410.0 && mouse_pos.x <= 740.0 && mouse_pos.y >= 400.0 && mouse_pos.y <= 440.0 {
+      self.answer_state = AnswerState::Marked;
+      self.answer_marked = 'b';
+    }
+    else if  mouse_pos.x >= 60.0 && mouse_pos.x <= 390.0  && mouse_pos.y >= 450.0 && mouse_pos.y <= 490.0{
+      self.answer_state = AnswerState::Marked;
+      self.answer_marked = 'c';
+    }
+    else if  mouse_pos.x >= 410.0 && mouse_pos.x <= 740.0  && mouse_pos.y >= 450.0 && mouse_pos.y <= 490.0{
+      self.answer_state = AnswerState::Marked;
+      self.answer_marked = 'd';
+    }
+    else {
+      return Ok(());
+    }
+
+    self.draw(ctx)?;
 
     //when the marked question is right
     if self.current_question.correct_answer == self.answer_marked{
       
-        self.current_score =*score_board_iter.nth(self.current_question_index).unwrap();
+        self.current_score =self.score_board[self.current_question_index + 1];
         //save the score after question 5,10 and play the saved_score sound effect
         match self.current_question_index{
           4 =>{
@@ -166,17 +169,18 @@ impl EventHandler for GameState {
             self.play_sc_sound();
           },
           14 =>self.saved_score = 100000,
-          _ => () //do nothing
+          _ =>
+          {   
+            //play the win sound and wait for 2 seconds
+            ggez::timer::sleep(std::time::Duration::new(2,0));
+            //draw the change of colour
+            self.answer_state =  AnswerState::Correct;
+            self.draw(ctx)?;
+            let _ = self.assets.right_question_sound.play();
+          }
         }
         
-        //play the win sound and wait for 2 seconds
-        if self.current_question_index != 4 && self.current_question_index != 9{
-          ggez::timer::sleep(std::time::Duration::new(2,0));
-          //draw the change of colour
-          self.answer_state =  AnswerState::Correct;
-          self.draw(ctx)?;
-          let _ = self.assets.right_question_sound.play();
-        }
+      
 
         //check if next question exists
         ggez::timer::sleep(std::time::Duration::new(1,0));
@@ -464,5 +468,246 @@ pub fn main() {
   event::run(ctx, event_loop, state).unwrap();
 }
 
+/*
+fn update(&mut self, ctx: &mut Context) -> GameResult {
+        //draw the context before doing something
+        
+        const DESIRED_FPS:u32 = 60;
+        let seconds = 1.0/(DESIRED_FPS as f32);
+    
+        //what happens if game is over
+        if self.game_over == true{
+          return Ok(());
+        }
+    
+        //what happens if player resigns
+        if self.player_resigned == true{
+          self.saved_score = self.current_score;
+           //make the exit more smooth
+          while timer::check_update_time(ctx,DESIRED_FPS){
+            self.answer_timer -=seconds;
+            
+            if self.answer_timer <= 0.0 {
+               self.assets.main_theme.stop();
+               let _=self.assets.resign_sound.play();
+               self.game_over = true;
+            }
+          }
+          return Ok(());
+        }
+    
+        //question I gives score I
+        let score_board = vec!(0,50,100,200,500,750,1000,1500,2000,2500,5000,10000,20000,50000,100000);
+        let mut score_board_iter = score_board.iter();
+        
+        //the game won t do anything if one of these keys isn t pressed
+        while !is_key_pressed(ctx,KeyCode::A) && !is_key_pressed(ctx,KeyCode::B) &&
+              !is_key_pressed(ctx,KeyCode::C) && !is_key_pressed(ctx,KeyCode::D)
+              {
+                return Ok(());
+              }
+        
+    
+        //when the marked question is right
+        if self.current_question.correct_answer == self.answer_marked{
+           
+            self.should_continue = false;
+            self.current_score =*score_board_iter.nth(self.current_question_index).unwrap();
+            //save the score after question 5,10 and play the saved_score sound effect
+            while timer::check_update_time(ctx,DESIRED_FPS) == true{
+              self.answer_timer -=seconds;
+              self.draw(ctx)?;
+
+              if self.answer_timer<= 0.0 {
+                //self.answer_state = AnswerState::Correct;  
+                match self.current_question_index{
+                    4 =>{
+                      self.saved_score = 500;
+                            self.play_sc_sound();
+                            self.answer_timer = 2.0;
+                            self.should_continue = true;
+                    },
+                    9 =>{
+                            self.saved_score = 2500;
+                            self.play_sc_sound();
+                            self.answer_timer = 2.0;
+                            self.should_continue = true;
+                    },
+                    14 =>self.saved_score = 100000,
+
+                    _ =>{ 
+                        self.transition_timer -=seconds;
+                        if self.transition_timer <= 0.0 {
+                            self.answer_state = AnswerState::Correct;  
+                            self.should_continue = true;
+                            let _ = self.assets.right_question_sound.play();
+                            
+                            self.answer_timer = 2.0;
+                            self.transition_timer = 1.0;
+                          }
+                        //self.draw(ctx)?;
+                        }
+                }
+              }
+              }
+    
+            //check if next question exists
+            if self.should_continue == true {
+              let next_question = self.questions.next();
+              match next_question {
+                Some(_) => {
+                  self.current_question = next_question.unwrap();
+                  self.answer_marked = '0'; // null the marked question
+                  self.answer_state =  AnswerState::NotMarked;//return the colour to blue
+                
+                },
+                None =>{
+                  //no more questions in the list so the player has won the game
+                  self.has_won = true;
+                  let _ = self.assets.win_sound.play();
+                  self.assets.main_theme.stop();
+                }
+              }
+              self.current_question_index +=1;
+            }
+            
+        }
+        //when the answer is wrong
+        else{
+          //draw the change of colour
+          self.draw(ctx)?;
+          while timer::check_update_time(ctx,DESIRED_FPS){
+            self.answer_timer -=seconds;
+    
+            if self.answer_timer <= 0.0 {
+              self.answer_state =  AnswerState::Wrong;
+              self.assets.main_theme.stop();
+              let _= self.assets.wrong_question_sound.play();
+              self.transition_timer -=seconds;
+              if self.transition_timer <= 0.0{
+                self.answer_timer = 2.0;
+                self.game_over = true;
+              }
+            }
+          }
+           
+        }
+    
+        Ok(())
+      }
+*/
+
+
+
+/*
+fn update(&mut self, ctx: &mut Context) -> GameResult {
+        self.draw(ctx)?;  
+        //what happens if game is over
+        if self.game_over == true{
+          return Ok(());
+        }
+    
+        //what happens if player resigns
+        if self.player_resigned == true{
+          self.saved_score = self.current_score;
+           //make the exit more smooth
+               self.assets.main_theme.stop();
+               let _=self.assets.resign_sound.play();
+               self.game_over = true;
+            
+          
+          return Ok(());
+        }
+    
+
+        
+        //the game won t do anything if one of these keys isn t pressed
+        while !is_key_pressed(ctx,KeyCode::A) && !is_key_pressed(ctx,KeyCode::B) &&
+              !is_key_pressed(ctx,KeyCode::C) && !is_key_pressed(ctx,KeyCode::D)
+              {
+                return Ok(());
+              }
+        
+        const DESIRED_FPS:u32 = 60;
+        let seconds = 1.0/(DESIRED_FPS as f32);  
+        self.draw(ctx)?;  
+        //answer logic
+        while timer::check_update_time(ctx, DESIRED_FPS) == true{
+          
+            if self.current_question.correct_answer == self.answer_marked{
+              self.answer_timer -=seconds;
+              //save the score after question 5,10 and play the saved_score sound effect
+                if self.answer_timer <= 0.0 {
+                  match self.current_question_index{
+                      4 =>{
+                              self.saved_score = 500;
+                              //self.play_sc_sound(ctx);
+                              self.answer_timer = 3.0;
+                              self.should_continue = true;
+                              
+                      },
+                      9 =>{
+                              self.saved_score = 2500;
+                              //self.play_sc_sound(ctx);
+                              self.answer_timer = 3.0;
+                              self.should_continue = true;
+                              
+                      },
+                      14 => self.saved_score = 100000,
+                      _ =>{
+                          self.answer_state = AnswerState::Correct; 
+                          self.transition_timer -=seconds;
+                          let _ = self.assets.right_question_sound.play();
+                          if self.transition_timer <= 0.0 {
+                              self.should_continue = true; 
+                              self.answer_timer = 3.0;
+                              self.transition_timer = 2.0;
+                          }
+                      }
+                  }
+                }
+                self.current_score =self.score_board[self.current_question_index + 1]; 
+                
+            }
+            //when the answer is wrong
+            else{
+             
+                if self.answer_timer <= 0.0 {
+                  self.answer_state =  AnswerState::Wrong;
+                  self.assets.main_theme.stop();
+                  let _= self.assets.wrong_question_sound.play();
+                  self.transition_timer -=seconds;
+                  if self.transition_timer <= 0.0{
+                    self.game_over = true;
+                  }
+                }
+             }
+             
+        } 
+
+        if self.should_continue == true {
+          let next_question = self.questions.next();
+          match next_question {
+            Some(_) => {
+              self.current_question = next_question.unwrap();
+              self.answer_marked = ' '; // null the marked question
+              self.answer_state =  AnswerState::NotMarked;//return the colour to blue
+              self.should_continue = false;
+            
+            },
+            None =>{
+              //no more questions in the list so the player has won the game
+              self.has_won = true;
+              let _ = self.assets.win_sound.play();
+              self.assets.main_theme.stop();
+            }
+          }
+          self.current_question_index +=1;
+        }
+
+        self.draw(ctx)?;  
+        Ok(())
+    }
+*/
 
 
