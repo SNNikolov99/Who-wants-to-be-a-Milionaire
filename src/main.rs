@@ -25,7 +25,6 @@ struct GameState{
   game_over:bool,
   player_resigned:bool,
   has_won:bool,
-  next_question:bool,
   current_score:u32,
   assets:Assets,
   questions:QuestionList,
@@ -53,7 +52,6 @@ impl GameState{
         game_over:false,
         player_resigned:false,
         has_won:false,
-        next_question:true,
         current_score:0,
         assets:_assets,
         questions:_questions,
@@ -74,10 +72,9 @@ impl GameState{
   //play the saved score sound
   fn play_sc_sound(& mut self){
       let _=self.assets.saved_score_sound.play();
-      self.time_transition = 6.0;
       if self.assets.main_theme.playing() == true{
             self.assets.main_theme.pause();
-            //ggez::timer::sleep(std::time::Duration::new(6,0));
+            ggez::timer::sleep(std::time::Duration::new(6,0));
             self.assets.saved_score_sound.stop();
             let _ =self.assets.main_theme.play();
           }
@@ -114,7 +111,6 @@ impl EventHandler for GameState {
 
     
     //the game won`t do anything if the mouse isn`t pressed
-
     while  mouse::button_pressed(ctx, mouse::MouseButton::Left) == false{
       return Ok(());
     }
@@ -147,6 +143,8 @@ impl EventHandler for GameState {
     let second = 1.0/desired_fps as f32;  
 
     while timer::check_update_time(ctx, desired_fps) == true{
+      //if an answer is marked, start substracting seconds
+        if self.answer_marked == 'a' || self.answer_marked == 'b' || self.answer_marked == 'c' || self.answer_marked == 'd'  {
           self.time_marked -=second;
           if self.time_marked <= 0.0 {
             //when the marked question is right
@@ -198,7 +196,7 @@ impl EventHandler for GameState {
                     if self.time_transition <= 0.0{
                       self.time_transition = 1.0;
                       self.time_marked = 3.0;
-                      self.next_question = true;
+                      
                     }
                   }
                 }
@@ -238,7 +236,7 @@ impl EventHandler for GameState {
             }
           }
         }
-      
+    }
     Ok(())
   }
 
