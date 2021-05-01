@@ -25,6 +25,7 @@ struct GameState{
   game_over:bool,
   player_resigned:bool,
   has_won:bool,
+  next_question:bool,
   current_score:u32,
   assets:Assets,
   questions:QuestionList,
@@ -52,6 +53,7 @@ impl GameState{
         game_over:false,
         player_resigned:false,
         has_won:false,
+        next_question:true,
         current_score:0,
         assets:_assets,
         questions:_questions,
@@ -61,24 +63,13 @@ impl GameState{
         current_question_index:0,
         saved_score:0,
         score_board: vec!(0,50,100,200,300,500,750,1000,1500,2000,2500,5000,10000,25000,50000,100000),
-        time_marked:3.0,
-        time_transition:1.0,
+        time_marked:2.0,
+        time_transition:0.5,
         
       };
 
     Ok(gs)
   }
-
-  //play the saved score sound
-  fn play_sc_sound(& mut self){
-      let _=self.assets.saved_score_sound.play();
-      if self.assets.main_theme.playing() == true{
-            self.assets.main_theme.pause();
-            ggez::timer::sleep(std::time::Duration::new(6,0));
-            self.assets.saved_score_sound.stop();
-            let _ =self.assets.main_theme.play();
-          }
-      }
 }
 
 impl EventHandler for GameState {
@@ -137,11 +128,18 @@ impl EventHandler for GameState {
       return Ok(());
     }
 
-    self.draw(ctx)?;
 
     let desired_fps = 60;
     let second = 1.0/desired_fps as f32;  
+    self.next_question = false;
 
+    //change transtition time for questions 5 and 10
+    if (self.current_question_index == 4 || self.current_question_index == 9) && self.time_marked >=2.0 {
+      self.time_transition = 3.5;
+    }
+
+    
+    //TODO: Премести кода за въпросите така,че да може да покрие случая при победа.Прекарай един тест да си припомниш.
     while timer::check_update_time(ctx, desired_fps) == true{
       //if an answer is marked, start substracting seconds
         if self.answer_marked == 'a' || self.answer_marked == 'b' || self.answer_marked == 'c' || self.answer_marked == 'd'  {
@@ -149,93 +147,92 @@ impl EventHandler for GameState {
           if self.time_marked <= 0.0 {
             //when the marked question is right
             if self.current_question.correct_answer == self.answer_marked{    
-                self.current_score =self.score_board[self.current_question_index + 1];
                 //save the score after question 5,10 and play the saved_score sound effect
                 match self.current_question_index{
                   4 =>{
-                    //ggez::timer::sleep(std::time::Duration::new(2,0));
                     self.saved_score = 500;
-                    self.draw(ctx)?;
-                    //draw the change of colour
+                    let _=self.assets.saved_score_sound.play();
+                    self.assets.main_theme.pause();
                     self.answer_state = AnswerState::Correct;
-                    self.draw(ctx)?;
-                    self.play_sc_sound();
                     self.time_transition -= second;
                     if self.time_transition <=0.0{
-                      self.time_transition = 1.0;
-                      self.time_marked = 3.0;
+                      self.time_transition = 0.5;
+                      self.time_marked = 2.0;
+                      self.next_question = true;
+                      self.assets.saved_score_sound.stop();
+                      let _ =self.assets.main_theme.play();
                     }
-                    
                     
                   },
                   9 =>{
-                    //ggez::timer::sleep(std::time::Duration::new(2,0));
                     self.saved_score = 2500;
-                    self.draw(ctx)?;
-                    //draw the change of colour
+                    let _=self.assets.saved_score_sound.play();
+                    self.assets.main_theme.pause();
                     self.answer_state = AnswerState::Correct;
-                    self.draw(ctx)?;
-                    self.play_sc_sound();
                     self.time_transition -= second;
-                    if self.time_transition <= 0.0{
-                      self.time_transition = 1.0;
-                      self.time_marked = 3.0;
+                    if self.time_transition <=0.0{
+                      self.time_transition = 0.5;
+                      self.time_marked = 2.0;
+                      self.next_question = true;
+                      self.assets.saved_score_sound.stop();
+                      let _ =self.assets.main_theme.play();
                     }
                     
                   },
-                  14 =>self.saved_score = 100000,
+                  14 =>{
+                    self.saved_score = 100000;
+                    self.next_question = true;
+                  },
                   _ =>
                   {   
                     //play the win sound and wait for 2 seconds
-                    //ggez::timer::sleep(std::time::Duration::new(2,0));
-                    //draw the change of colour
-                    self.answer_state =  AnswerState::Correct;
-                    self.draw(ctx)?;
                     let _ = self.assets.right_question_sound.play();
+                    self.answer_state =  AnswerState::Correct;
                     self.time_transition -= second;
                     if self.time_transition <= 0.0{
-                      self.time_transition = 1.0;
-                      self.time_marked = 3.0;
-                      
+                      self.time_transition = 0.5;
+                      self.time_marked = 2.0;
+                      self.next_question = true;
                     }
                   }
                 }
                 
                 //check if next question exists
-                //ggez::timer::sleep(std::time::Duration::new(1,0));
-                let next_question = self.questions.next();
-                match next_question {
-                  Some(_) => {
-                    self.current_question = next_question.unwrap();
-                    self.answer_marked = ' '; 
-                    self.answer_state =  AnswerState::NotMarked;
-                  
-                  },
-                  None =>{
-                    //no more questions in the list so the player has won the game
-                    self.has_won = true;
-                    let _ = self.assets.win_sound.play();
-                    self.assets.main_theme.stop();
+                if self.next_question == true {
+                  let next_question = self.questions.next();
+                  match next_question {
+                    Some(_) => {
+                      self.current_question = next_question.unwrap();
+                      self.answer_marked = ' '; 
+                      self.answer_state =  AnswerState::NotMarked;
+                    
+                    },
+                    None =>{ //no more questions in the list so the player has won the game
+                      self.has_won = true;
+                      let _ = self.assets.win_sound.play();
+                      self.assets.main_theme.stop();
+                    }
                   }
+                  if self.current_question_index < 15{ 
+                    self.current_question_index +=1;
+                  }
+                  
                 }
-                self.current_question_index +=1;
-                
             }
             //when the answer is wrong
             else{
               self.answer_state =  AnswerState::Wrong;
-              //ggez::timer::sleep(std::time::Duration::new(2,0));
-              self.draw(ctx)?;
               self.assets.main_theme.stop();
               let _= self.assets.wrong_question_sound.play();
-              //ggez::timer::sleep(std::time::Duration::new(1,500));
               self.time_transition -= second;
               if self.time_transition <= 0.0{
                 self.game_over = true;
               }    
             }
           }
+          self.draw(ctx)?;
         }
+        self.current_score =self.score_board[self.current_question_index];
     }
     Ok(())
   }
