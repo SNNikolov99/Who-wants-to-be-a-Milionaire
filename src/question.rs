@@ -89,8 +89,6 @@ impl Question{
          dr_question.set_bounds(Point2{x:680.0,y:70.0},Align::Center);
         
         
-        
-       
          //draws the question
           graphics::draw(_ctx,&dr_question,DrawParam{
               dest:Point2{x:60.0,y:310.0},

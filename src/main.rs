@@ -414,7 +414,7 @@ impl EventHandler for GameState {
     }
 
     // help public joker
-    if self.fifty_fifty_used == false {
+    if self.help_public == false {
       graphics::draw(ctx,&joker_rect,DrawParam{
         dest:Point2{x:00.0,y:215.0},
         ..Default::default()
@@ -422,7 +422,7 @@ impl EventHandler for GameState {
     }
 
     // call friend joker
-    if self.fifty_fifty_used == false {
+    if self.friend_call == false {
       graphics::draw(ctx,&joker_rect,DrawParam{
         dest:Point2{x:00.0,y:250.0},
         ..Default::default()
