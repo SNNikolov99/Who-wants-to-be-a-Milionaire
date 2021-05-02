@@ -8,6 +8,8 @@ use ggez::input::mouse;
 
 use rand::Rng;
 use rand::rngs::ThreadRng;
+use rand::prelude::*;
+use rand::distributions::WeightedIndex;
 
 use wwtm_project::source::Assets;
 use wwtm_project::question_list::QuestionList;
@@ -23,12 +25,14 @@ enum AnswerState{
   Wrong,
 }
 
-
 struct GameState{
   rng:ThreadRng,
   fifty_fifty_used:bool,
   help_public :bool,
+  help_public_index:usize,
+  answer_public:(u32,u32,u32,u32),
   friend_call:bool,
+  friend_call_index:usize, // on which question the "Call a friend joker" is used,so it cannot be shown on other questions
   game_over:bool,
   player_resigned:bool,
   has_won:bool,
@@ -38,6 +42,7 @@ struct GameState{
   questions:QuestionList,
   answer_state:AnswerState,
   answer_marked:char,
+  answer_friend:char,
   current_question:Question,
   current_question_index:usize, // helps finding question score
   saved_score:u32, //cap 500,2500,100000 or the current_score if the player decides to resign
@@ -47,6 +52,7 @@ struct GameState{
 
 
 }
+
 
 
 impl GameState{
@@ -60,7 +66,10 @@ impl GameState{
         rng: rand::thread_rng(),
         fifty_fifty_used:false,
         help_public:false,
+        help_public_index:0,
+        answer_public:(0,0,0,0),
         friend_call:false,
+        friend_call_index:0,
         game_over:false,
         player_resigned:false,
         has_won:false,
@@ -70,6 +79,7 @@ impl GameState{
         questions:_questions,
         answer_state:AnswerState::NotMarked,
         answer_marked:' ',
+        answer_friend:' ',
         current_question:first_question,
         current_question_index:0,
         saved_score:0,
@@ -181,6 +191,72 @@ impl GameState{
   }
 
 
+  fn help_public(&mut self) -> (u32,u32,u32,u32){
+    let mut a_supporters = 0;
+    let mut b_supporters = 0;
+    let mut c_supporters = 0;
+    let mut d_supporters = 0;
+
+    for _i in 1..100 {
+      if self.friend_call() == 'a' {
+        a_supporters +=1;
+      }
+      if self.friend_call() == 'b' {
+        b_supporters +=1;
+      }
+      if self.friend_call() == 'c' {
+        c_supporters +=1;
+      }
+      if self.friend_call() == 'd' {
+        d_supporters +=1;
+      }
+    }
+    (a_supporters,b_supporters,c_supporters,d_supporters)
+  }
+
+  fn friend_call(&mut self) -> char {
+    let mut prob = 1.0; // probabiity for right answer
+    let choices = ['a', 'b', 'c','d'];
+    let mut weights = [1.0,1.0,1.0,1.0];
+
+    if self.current_question_index > 0 && self.current_question_index <=5 {
+      prob = 1.0;
+    }
+    else if self.current_question_index >=6 && self.current_question_index <=8 {
+      prob = 0.80;
+    }
+    else if self.current_question_index >=9 && self.current_question_index <=10{
+      prob = 0.60;
+    }
+    else if self.current_question_index == 11 {
+      prob = 0.40;
+    }
+    else if self.current_question_index == 12 {
+      prob = 0.25;
+    }
+    else if self.current_question_index == 13 {
+      prob = 0.15;
+    }
+    else if self.current_question_index == 14{
+      prob = 0.05;
+    }
+    //calculate the weight for the reight answer
+    if self.current_question.correct_answer == 'a' {
+      weights = [prob,(1.0-prob)/3.0, (1.0-prob)/3.0, (1.0-prob)/3.0];
+    }
+    if self.current_question.correct_answer == 'b' {
+      weights = [(1.0-prob)/3.0 ,prob, (1.0-prob)/3.0, (1.0-prob)/3.0];
+    }
+    if self.current_question.correct_answer == 'c' {
+      weights = [(1.0-prob)/3.0,(1.0-prob)/3.0, prob, (1.0-prob)/3.0];
+    }
+    if self.current_question.correct_answer == 'd' {
+      weights = [(1.0-prob)/3.0,(1.0-prob)/3.0, (1.0-prob)/3.0, prob];
+    }
+    let dist = WeightedIndex::new(&weights).unwrap(); 
+    choices[dist.sample(&mut self.rng)]
+  }
+
 }
 
 impl EventHandler for GameState {
@@ -245,10 +321,15 @@ impl EventHandler for GameState {
     //use joker "Help from the public"
     if mouse_pos.x <= 30.0 && mouse_pos.y >= 215.0 && mouse_pos.y <= 245.0 && self.help_public == false {
       self.help_public = true;
+      self.answer_public = self.help_public();
+      self.help_public_index = self.current_question_index;
     }
      //use joker "Call a friend"
     if mouse_pos.x <= 30.0 && mouse_pos.y >= 250.0 && mouse_pos.y <= 280.0 && self.friend_call == false {
       self.friend_call = true;
+      self.answer_friend = self.friend_call();
+      self.friend_call_index = self.current_question_index;
+      
     }
 
 
@@ -282,7 +363,7 @@ impl EventHandler for GameState {
                       self.time_transition = 0.5;
                       self.time_marked = 2.0;
                       self.next_question = true;
-                     // self.assets.saved_score_sound.stop();
+                      self.assets.saved_score_sound.stop();
                       let _ =self.assets.main_theme.play();
                     }
                     
@@ -297,7 +378,7 @@ impl EventHandler for GameState {
                       self.time_transition = 0.5;
                       self.time_marked = 2.0;
                       self.next_question = true;
-                      //self.assets.saved_score_sound.stop();
+                      self.assets.saved_score_sound.stop();
                       let _ =self.assets.main_theme.play();
                     }
                     
@@ -353,7 +434,7 @@ impl EventHandler for GameState {
               }    
             }
           }
-          self.draw(ctx)?;
+          //self.draw(ctx)?;
         }
         self.current_score =self.score_board[self.current_question_index];
 
@@ -405,6 +486,7 @@ impl EventHandler for GameState {
        DrawMode::fill(),
      Rect::new(0.0,0.0,30.0,30.0),
      Color::new(0.0,0.0,40.0,0.95))?;
+
     // 50/50 joker
     if self.fifty_fifty_used == false {
       graphics::draw(ctx,&joker_rect,DrawParam{
@@ -420,14 +502,35 @@ impl EventHandler for GameState {
         ..Default::default()
       })?;
     }
+    else if self.current_question_index == self.help_public_index {
+      let answer_a = graphics::Text::new(format!("People who support A : {} % ",self.answer_public.0));
+      graphics::draw(ctx,&answer_a,DrawParam{dest:Point2{x: 175.0,y: 125.0},..Default::default()})?;
+      let answer_b = graphics::Text::new(format!("People who support B : {} % ",self.answer_public.1));
+      graphics::draw(ctx,&answer_b,DrawParam{dest:Point2{x: 175.0,y: 140.0},..Default::default()})?;
+      let answer_c = graphics::Text::new(format!("People who support C : {} % ",self.answer_public.2));
+      graphics::draw(ctx,&answer_c,DrawParam{dest:Point2{x: 175.0,y: 155.0},..Default::default()})?;
+      let answer_d = graphics::Text::new(format!("People who support D : {} % ",self.answer_public.3));
+      graphics::draw(ctx,&answer_d,DrawParam{dest:Point2{x: 175.0,y: 170.0},..Default::default()})?;
+      //self.friend_call_used = true;
+      //timer::sleep(std::time::Duration::new(2,0));
+    } 
 
     // call friend joker
-    if self.friend_call == false {
-      graphics::draw(ctx,&joker_rect,DrawParam{
-        dest:Point2{x:00.0,y:250.0},
-        ..Default::default()
-      })?;
-    }
+    
+      if self.friend_call == false  {
+        graphics::draw(ctx,&joker_rect,DrawParam{
+          dest:Point2{x:00.0,y:250.0},
+          ..Default::default()
+        })?;
+      }
+      else if self.current_question_index == self.friend_call_index {
+        let message = graphics::Text::new(format!("I think the answer is : {} ",self.answer_friend));
+        graphics::draw(ctx,&message,DrawParam{dest:Point2{x: 175.0,y: 120.0},..Default::default()})?;
+        //self.friend_call_used = true;
+        //timer::sleep(std::time::Duration::new(2,0));
+      } 
+
+    
 
     //draws the question placeholder
     let question_rect = graphics::Mesh::new_rectangle(
