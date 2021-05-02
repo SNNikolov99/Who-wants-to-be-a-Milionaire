@@ -6,6 +6,9 @@ use ggez::mint::{Point2,Vector2};
 use ggez::audio::SoundSource;
 use ggez::input::mouse;
 
+use rand::Rng;
+use rand::rngs::ThreadRng;
+
 use wwtm_project::source::Assets;
 use wwtm_project::question_list::QuestionList;
 use wwtm_project::question::Question;
@@ -22,6 +25,10 @@ enum AnswerState{
 
 
 struct GameState{
+  rng:ThreadRng,
+  fifty_fifty_used:bool,
+  help_public :bool,
+  friend_call:bool,
   game_over:bool,
   player_resigned:bool,
   has_won:bool,
@@ -50,6 +57,10 @@ impl GameState{
     
     let gs = Self
       {
+        rng: rand::thread_rng(),
+        fifty_fifty_used:false,
+        help_public:false,
+        friend_call:false,
         game_over:false,
         player_resigned:false,
         has_won:false,
@@ -70,6 +81,106 @@ impl GameState{
 
     Ok(gs)
   }
+
+  fn joker_50_50(&mut self){
+    let first_removed = self.rng.gen_range(1..3);
+    let mut second_removed = self.rng.gen_range(1..3);
+
+    while first_removed == second_removed {
+        second_removed = self.rng.gen_range(1..3);
+    }
+
+    if self.current_question.correct_answer == 'a' {
+      if first_removed == 1 {
+        self.current_question.a2_show = false;
+      }
+      else if first_removed == 2 {
+        self.current_question.a3_show = false;
+      }
+      else {
+        self.current_question.a4_show = false;
+      }
+
+      if second_removed == 1 {
+        self.current_question.a2_show = false;
+      }
+      else if second_removed == 2 {
+        self.current_question.a3_show = false;
+      }
+      else {
+        self.current_question.a4_show = false;
+      }
+
+    }
+    else if self.current_question.correct_answer == 'b'{
+      if first_removed == 1 {
+        self.current_question.a1_show = false;
+      }
+      else if first_removed == 2 {
+        self.current_question.a3_show = false;
+      }
+      else {
+        self.current_question.a4_show = false;
+      }
+
+      if second_removed == 1 {
+        self.current_question.a1_show = false;
+      }
+      else if second_removed == 2 {
+        self.current_question.a3_show = false;
+      }
+      else {
+        self.current_question.a4_show = false;
+      }
+    }
+    else if self.current_question.correct_answer == 'c'{
+      if first_removed == 1 {
+        self.current_question.a1_show = false;
+      }
+      else if first_removed == 2 {
+        self.current_question.a2_show = false;
+      }
+      else {
+        self.current_question.a4_show = false;
+      }
+
+      if second_removed == 1 {
+        self.current_question.a1_show = false;
+      }
+      else if second_removed == 2 {
+        self.current_question.a2_show = false;
+      }
+      else {
+        self.current_question.a4_show = false;
+      }
+    }
+    else if self.current_question.correct_answer == 'd'{
+      if first_removed == 1 {
+        self.current_question.a1_show = false;
+      }
+      else if first_removed == 2 {
+        self.current_question.a2_show = false;
+      }
+      else {
+        self.current_question.a3_show = false;
+      }
+
+      if second_removed == 1 {
+        self.current_question.a1_show = false;
+      }
+      else if second_removed == 2 {
+        self.current_question.a2_show = false;
+      }
+      else {
+        self.current_question.a3_show = false;
+      }
+    }
+    else{
+      ()
+    }
+  }
+
+
 }
 
 impl EventHandler for GameState {
@@ -124,8 +235,20 @@ impl EventHandler for GameState {
       self.answer_state = AnswerState::Marked;
       self.answer_marked = 'd';
     }
-    else {
-      return Ok(());
+   
+
+    //use joker 50/50
+    if mouse_pos.x <= 30.0 && mouse_pos.y >= 180.0 && mouse_pos.y <= 210.0 && self.fifty_fifty_used == false {
+      self.joker_50_50();
+      self.fifty_fifty_used = true;
+    }
+    //use joker "Help from the public"
+    if mouse_pos.x <= 30.0 && mouse_pos.y >= 215.0 && mouse_pos.y <= 245.0 && self.help_public == false {
+      self.help_public = true;
+    }
+     //use joker "Call a friend"
+    if mouse_pos.x <= 30.0 && mouse_pos.y >= 250.0 && mouse_pos.y <= 280.0 && self.friend_call == false {
+      self.friend_call = true;
     }
 
 
@@ -144,7 +267,7 @@ impl EventHandler for GameState {
       //if an answer is marked, start substracting seconds
         if self.answer_marked == 'a' || self.answer_marked == 'b' || self.answer_marked == 'c' || self.answer_marked == 'd'  {
           self.time_marked -=second;
-          if self.time_marked <= 0.0 {
+          if self.time_marked < 0.0 {
             //when the marked question is right
             if self.current_question.correct_answer == self.answer_marked{    
                 //save the score after question 5,10 and play the saved_score sound effect
@@ -159,7 +282,7 @@ impl EventHandler for GameState {
                       self.time_transition = 0.5;
                       self.time_marked = 2.0;
                       self.next_question = true;
-                      self.assets.saved_score_sound.stop();
+                     // self.assets.saved_score_sound.stop();
                       let _ =self.assets.main_theme.play();
                     }
                     
@@ -170,11 +293,11 @@ impl EventHandler for GameState {
                     self.assets.main_theme.pause();
                     self.answer_state = AnswerState::Correct;
                     self.time_transition -= second;
-                    if self.time_transition <=0.0{
+                    if self.time_transition <= 0.0{
                       self.time_transition = 0.5;
                       self.time_marked = 2.0;
                       self.next_question = true;
-                      self.assets.saved_score_sound.stop();
+                      //self.assets.saved_score_sound.stop();
                       let _ =self.assets.main_theme.play();
                     }
                     
@@ -233,6 +356,7 @@ impl EventHandler for GameState {
           self.draw(ctx)?;
         }
         self.current_score =self.score_board[self.current_question_index];
+
     }
     Ok(())
   }
@@ -274,6 +398,36 @@ impl EventHandler for GameState {
 
     //draws the background
     graphics::draw(ctx,&self.assets.background,DrawParam{..Default::default()})?;
+
+    //draws a joker placeholder
+    let joker_rect =  graphics::Mesh::new_rectangle(
+      ctx,
+       DrawMode::fill(),
+     Rect::new(0.0,0.0,30.0,30.0),
+     Color::new(0.0,0.0,40.0,0.95))?;
+    // 50/50 joker
+    if self.fifty_fifty_used == false {
+      graphics::draw(ctx,&joker_rect,DrawParam{
+        dest:Point2{x:00.0,y:180.0},
+        ..Default::default()
+      })?;
+    }
+
+    // help public joker
+    if self.fifty_fifty_used == false {
+      graphics::draw(ctx,&joker_rect,DrawParam{
+        dest:Point2{x:00.0,y:215.0},
+        ..Default::default()
+      })?;
+    }
+
+    // call friend joker
+    if self.fifty_fifty_used == false {
+      graphics::draw(ctx,&joker_rect,DrawParam{
+        dest:Point2{x:00.0,y:250.0},
+        ..Default::default()
+      })?;
+    }
 
     //draws the question placeholder
     let question_rect = graphics::Mesh::new_rectangle(
