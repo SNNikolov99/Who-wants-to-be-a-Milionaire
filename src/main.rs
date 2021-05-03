@@ -314,18 +314,18 @@ impl EventHandler for GameState {
    
 
     //use joker 50/50
-    if mouse_pos.x <= 30.0 && mouse_pos.y >= 180.0 && mouse_pos.y <= 210.0 && self.fifty_fifty_used == false {
+    if mouse_pos.x <= 38.0 && mouse_pos.y >= 180.0 && mouse_pos.y <= 210.0 && self.fifty_fifty_used == false {
       self.joker_50_50();
       self.fifty_fifty_used = true;
     }
     //use joker "Help from the public"
-    if mouse_pos.x <= 30.0 && mouse_pos.y >= 215.0 && mouse_pos.y <= 245.0 && self.help_public == false {
+    if mouse_pos.x <= 38.0 && mouse_pos.y >= 215.0 && mouse_pos.y <= 245.0 && self.help_public == false {
       self.help_public = true;
       self.answer_public = self.help_public();
       self.help_public_index = self.current_question_index;
     }
      //use joker "Call a friend"
-    if mouse_pos.x <= 30.0 && mouse_pos.y >= 250.0 && mouse_pos.y <= 280.0 && self.friend_call == false {
+    if mouse_pos.x <= 38.0 && mouse_pos.y >= 250.0 && mouse_pos.y <= 280.0 && self.friend_call == false {
       self.friend_call = true;
       self.answer_friend = self.friend_call();
       self.friend_call_index = self.current_question_index;
@@ -339,7 +339,7 @@ impl EventHandler for GameState {
 
     //change transtition time for questions 5 and 10
     if (self.current_question_index == 4 || self.current_question_index == 9) && self.time_marked >=2.0 {
-      self.time_transition = 3.5;
+      self.time_transition = 2.5;
     }
 
     
@@ -348,7 +348,7 @@ impl EventHandler for GameState {
       //if an answer is marked, start substracting seconds
         if self.answer_marked == 'a' || self.answer_marked == 'b' || self.answer_marked == 'c' || self.answer_marked == 'd'  {
           self.time_marked -=second;
-          if self.time_marked < 0.0 {
+          if self.time_marked <= 0.0 {
             //when the marked question is right
             if self.current_question.correct_answer == self.answer_marked{    
                 //save the score after question 5,10 and play the saved_score sound effect
@@ -479,26 +479,21 @@ impl EventHandler for GameState {
 
     //draws the background
     graphics::draw(ctx,&self.assets.background,DrawParam{..Default::default()})?;
-
-    //draws a joker placeholder
-    let joker_rect =  graphics::Mesh::new_rectangle(
-      ctx,
-       DrawMode::fill(),
-     Rect::new(0.0,0.0,30.0,30.0),
-     Color::new(0.0,0.0,40.0,0.95))?;
-
+   
     // 50/50 joker
     if self.fifty_fifty_used == false {
-      graphics::draw(ctx,&joker_rect,DrawParam{
-        dest:Point2{x:00.0,y:180.0},
+      graphics::draw(ctx,&self.assets.joker_50_50,DrawParam{
+        dest:Point2{x:0.0,y:180.0},
+        scale:Vector2{x:0.1143,y:0.0886},
         ..Default::default()
       })?;
     }
 
-    // help public joker
+    // help from public joker
     if self.help_public == false {
-      graphics::draw(ctx,&joker_rect,DrawParam{
-        dest:Point2{x:00.0,y:215.0},
+      graphics::draw(ctx,&self.assets.joker_help_public,DrawParam{
+        dest:Point2{x:0.0,y:215.0},
+        scale:Vector2{x:0.1143,y:0.0886},
         ..Default::default()
       })?;
     }
@@ -511,23 +506,19 @@ impl EventHandler for GameState {
       graphics::draw(ctx,&answer_c,DrawParam{dest:Point2{x: 175.0,y: 155.0},..Default::default()})?;
       let answer_d = graphics::Text::new(format!("People who support D : {} % ",self.answer_public.3));
       graphics::draw(ctx,&answer_d,DrawParam{dest:Point2{x: 175.0,y: 170.0},..Default::default()})?;
-      //self.friend_call_used = true;
-      //timer::sleep(std::time::Duration::new(2,0));
     } 
 
-    // call friend joker
-    
+    // call a friend joker
       if self.friend_call == false  {
-        graphics::draw(ctx,&joker_rect,DrawParam{
-          dest:Point2{x:00.0,y:250.0},
+        graphics::draw(ctx,&self.assets.joker_friend_call,DrawParam{
+          dest:Point2{x:0.0,y:250.0},
+          scale:Vector2{x:0.1143,y:0.0886},
           ..Default::default()
         })?;
       }
       else if self.current_question_index == self.friend_call_index {
         let message = graphics::Text::new(format!("I think the answer is : {} ",self.answer_friend));
         graphics::draw(ctx,&message,DrawParam{dest:Point2{x: 175.0,y: 120.0},..Default::default()})?;
-        //self.friend_call_used = true;
-        //timer::sleep(std::time::Duration::new(2,0));
       } 
 
     
