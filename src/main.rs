@@ -6,6 +6,11 @@ use ggez::mint::{Point2,Vector2};
 use ggez::audio::SoundSource;
 use ggez::input::mouse;
 
+use rand::Rng;
+use rand::rngs::ThreadRng;
+use rand::prelude::*;
+use rand::distributions::WeightedIndex;
+
 use wwtm_project::source::Assets;
 use wwtm_project::question_list::QuestionList;
 use wwtm_project::question::Question;
@@ -20,8 +25,14 @@ enum AnswerState{
   Wrong,
 }
 
-
 struct GameState{
+  rng:ThreadRng,
+  fifty_fifty_used:bool,
+  help_public :bool,
+  help_public_index:usize,
+  answer_public:(u32,u32,u32,u32),
+  friend_call:bool,
+  friend_call_index:usize, // on which question the "Call a friend joker" is used,so it cannot be shown on other questions
   game_over:bool,
   player_resigned:bool,
   has_won:bool,
@@ -31,6 +42,7 @@ struct GameState{
   questions:QuestionList,
   answer_state:AnswerState,
   answer_marked:char,
+  answer_friend:char,
   current_question:Question,
   current_question_index:usize, // helps finding question score
   saved_score:u32, //cap 500,2500,100000 or the current_score if the player decides to resign
@@ -42,6 +54,7 @@ struct GameState{
 }
 
 
+
 impl GameState{
   fn new(ctx: &mut Context, _conf :&Conf)-> GameResult<GameState> {
     let _assets = Assets::new(ctx)?;
@@ -50,6 +63,13 @@ impl GameState{
     
     let gs = Self
       {
+        rng: rand::thread_rng(),
+        fifty_fifty_used:false,
+        help_public:false,
+        help_public_index:0,
+        answer_public:(0,0,0,0),
+        friend_call:false,
+        friend_call_index:0,
         game_over:false,
         player_resigned:false,
         has_won:false,
@@ -59,17 +79,187 @@ impl GameState{
         questions:_questions,
         answer_state:AnswerState::NotMarked,
         answer_marked:' ',
+        answer_friend:' ',
         current_question:first_question,
         current_question_index:0,
         saved_score:0,
         score_board: vec!(0,50,100,200,300,500,750,1000,1500,2000,2500,5000,10000,25000,50000,100000),
         time_marked:2.0,
-        time_transition:0.5,
+        time_transition:0.9,
         
       };
 
     Ok(gs)
   }
+
+  fn joker_50_50(&mut self){
+    let first_removed = self.rng.gen_range(1..3);
+    let mut second_removed = self.rng.gen_range(1..3);
+
+    while first_removed == second_removed {
+        second_removed = self.rng.gen_range(1..3);
+    }
+
+    if self.current_question.correct_answer == 'a' {
+      if first_removed == 1 {
+        self.current_question.a2_show = false;
+      }
+      else if first_removed == 2 {
+        self.current_question.a3_show = false;
+      }
+      else {
+        self.current_question.a4_show = false;
+      }
+
+      if second_removed == 1 {
+        self.current_question.a2_show = false;
+      }
+      else if second_removed == 2 {
+        self.current_question.a3_show = false;
+      }
+      else {
+        self.current_question.a4_show = false;
+      }
+
+    }
+    else if self.current_question.correct_answer == 'b'{
+      if first_removed == 1 {
+        self.current_question.a1_show = false;
+      }
+      else if first_removed == 2 {
+        self.current_question.a3_show = false;
+      }
+      else {
+        self.current_question.a4_show = false;
+      }
+
+      if second_removed == 1 {
+        self.current_question.a1_show = false;
+      }
+      else if second_removed == 2 {
+        self.current_question.a3_show = false;
+      }
+      else {
+        self.current_question.a4_show = false;
+      }
+    }
+    else if self.current_question.correct_answer == 'c'{
+      if first_removed == 1 {
+        self.current_question.a1_show = false;
+      }
+      else if first_removed == 2 {
+        self.current_question.a2_show = false;
+      }
+      else {
+        self.current_question.a4_show = false;
+      }
+
+      if second_removed == 1 {
+        self.current_question.a1_show = false;
+      }
+      else if second_removed == 2 {
+        self.current_question.a2_show = false;
+      }
+      else {
+        self.current_question.a4_show = false;
+      }
+    }
+    else if self.current_question.correct_answer == 'd'{
+      if first_removed == 1 {
+        self.current_question.a1_show = false;
+      }
+      else if first_removed == 2 {
+        self.current_question.a2_show = false;
+      }
+      else {
+        self.current_question.a3_show = false;
+      }
+
+      if second_removed == 1 {
+        self.current_question.a1_show = false;
+      }
+      else if second_removed == 2 {
+        self.current_question.a2_show = false;
+      }
+      else {
+        self.current_question.a3_show = false;
+      }
+    }
+    else{
+      ()
+    }
+  }
+
+
+  fn help_public(&mut self) -> (u32,u32,u32,u32){
+    let mut a_supporters = 0;
+    let mut b_supporters = 0;
+    let mut c_supporters = 0;
+    let mut d_supporters = 0;
+
+    for _i in 1..100 {
+      if self.friend_call() == 'a' {
+        a_supporters +=1;
+      }
+      if self.friend_call() == 'b' {
+        b_supporters +=1;
+      }
+      if self.friend_call() == 'c' {
+        c_supporters +=1;
+      }
+      if self.friend_call() == 'd' {
+        d_supporters +=1;
+      }
+    }
+    (a_supporters,b_supporters,c_supporters,d_supporters)
+  }
+
+  fn friend_call(&mut self) -> char {
+    let mut prob = 1.0; // probabiity for right answer
+    let choices = ['a', 'b', 'c','d'];
+    let mut weights = [1.0,1.0,1.0,1.0];
+
+    if self.current_question_index > 0 && self.current_question_index <=4 {
+      prob = 1.0;
+    }
+    else if self.current_question_index >=5 && self.current_question_index <=6 {
+      prob = 0.90;
+    }
+    else if self.current_question_index >=7 && self.current_question_index <=8 {
+      prob = 0.65;
+    }
+    else if self.current_question_index >=9 && self.current_question_index <=10{
+      prob = 0.50;
+    }
+    else if self.current_question_index == 11 {
+      prob = 0.35;
+    }
+    else if self.current_question_index == 12 {
+      prob = 0.25;
+    }
+    else if self.current_question_index == 13 {
+      prob = 0.15;
+    }
+    else if self.current_question_index == 14{
+      prob = 0.05;
+    }
+    //calculate the weight for the reight answer
+    if self.current_question.correct_answer == 'a' {
+      weights = [prob,(1.0-prob)/3.0, (1.0-prob)/3.0, (1.0-prob)/3.0];
+    }
+    if self.current_question.correct_answer == 'b' {
+      weights = [(1.0-prob)/3.0 ,prob, (1.0-prob)/3.0, (1.0-prob)/3.0];
+    }
+    if self.current_question.correct_answer == 'c' {
+      weights = [(1.0-prob)/3.0,(1.0-prob)/3.0, prob, (1.0-prob)/3.0];
+    }
+    if self.current_question.correct_answer == 'd' {
+      weights = [(1.0-prob)/3.0,(1.0-prob)/3.0, (1.0-prob)/3.0, prob];
+    }
+    let dist = WeightedIndex::new(&weights).unwrap(); 
+    choices[dist.sample(&mut self.rng)]
+  }
+
 }
 
 impl EventHandler for GameState {
@@ -124,22 +314,38 @@ impl EventHandler for GameState {
       self.answer_state = AnswerState::Marked;
       self.answer_marked = 'd';
     }
-    else {
-      return Ok(());
+   
+
+    //use joker 50/50
+    if mouse_pos.x <= 38.0 && mouse_pos.y >= 180.0 && mouse_pos.y <= 210.0 && self.fifty_fifty_used == false {
+      self.joker_50_50();
+      self.fifty_fifty_used = true;
+    }
+    //use joker "Help from the public"
+    if mouse_pos.x <= 38.0 && mouse_pos.y >= 215.0 && mouse_pos.y <= 245.0 && self.help_public == false {
+      self.help_public = true;
+      self.answer_public = self.help_public();
+      self.help_public_index = self.current_question_index;
+    }
+     //use joker "Call a friend"
+    if mouse_pos.x <= 38.0 && mouse_pos.y >= 250.0 && mouse_pos.y <= 280.0 && self.friend_call == false {
+      self.friend_call = true;
+      self.answer_friend = self.friend_call();
+      self.friend_call_index = self.current_question_index;
+      
     }
 
 
-    let desired_fps = 60;
+    let desired_fps = 20;
     let second = 1.0/desired_fps as f32;  
     self.next_question = false;
 
     //change transtition time for questions 5 and 10
     if (self.current_question_index == 4 || self.current_question_index == 9) && self.time_marked >=2.0 {
-      self.time_transition = 3.5;
+      self.time_transition = 4.0;
     }
 
     
-    //TODO: Премести кода за въпросите така,че да може да покрие случая при победа.Прекарай един тест да си припомниш.
     while timer::check_update_time(ctx, desired_fps) == true{
       //if an answer is marked, start substracting seconds
         if self.answer_marked == 'a' || self.answer_marked == 'b' || self.answer_marked == 'c' || self.answer_marked == 'd'  {
@@ -151,30 +357,30 @@ impl EventHandler for GameState {
                 match self.current_question_index{
                   4 =>{
                     self.saved_score = 500;
-                    let _=self.assets.saved_score_sound.play();
                     self.assets.main_theme.pause();
+                    let _=self.assets.saved_score_sound.play();
                     self.answer_state = AnswerState::Correct;
                     self.time_transition -= second;
                     if self.time_transition <=0.0{
-                      self.time_transition = 0.5;
+                      self.time_transition = 0.9;
                       self.time_marked = 2.0;
                       self.next_question = true;
-                      self.assets.saved_score_sound.stop();
+                      self.assets.saved_score_sound.pause();
                       let _ =self.assets.main_theme.play();
                     }
                     
                   },
                   9 =>{
                     self.saved_score = 2500;
-                    let _=self.assets.saved_score_sound.play();
                     self.assets.main_theme.pause();
+                    let _=self.assets.saved_score_sound.play();
                     self.answer_state = AnswerState::Correct;
                     self.time_transition -= second;
-                    if self.time_transition <=0.0{
-                      self.time_transition = 0.5;
+                    if self.time_transition <= 0.0{
+                      self.time_transition = 0.9;
                       self.time_marked = 2.0;
                       self.next_question = true;
-                      self.assets.saved_score_sound.stop();
+                      self.assets.saved_score_sound.pause();
                       let _ =self.assets.main_theme.play();
                     }
                     
@@ -185,7 +391,6 @@ impl EventHandler for GameState {
                   },
                   _ =>
                   {   
-                    //play the win sound and wait for 2 seconds
                     let _ = self.assets.right_question_sound.play();
                     self.answer_state =  AnswerState::Correct;
                     self.time_transition -= second;
@@ -207,7 +412,8 @@ impl EventHandler for GameState {
                       self.answer_state =  AnswerState::NotMarked;
                     
                     },
-                    None =>{ //no more questions in the list so the player has won the game
+                    None =>{ 
+                      //no more questions in the list so the player has won the game
                       self.has_won = true;
                       let _ = self.assets.win_sound.play();
                       self.assets.main_theme.stop();
@@ -230,10 +436,11 @@ impl EventHandler for GameState {
               }    
             }
           }
-          self.draw(ctx)?;
         }
         self.current_score =self.score_board[self.current_question_index];
+        self.draw(ctx)?;
     }
+
     Ok(())
   }
 
@@ -274,6 +481,49 @@ impl EventHandler for GameState {
 
     //draws the background
     graphics::draw(ctx,&self.assets.background,DrawParam{..Default::default()})?;
+   
+    // 50/50 joker
+    if self.fifty_fifty_used == false {
+      graphics::draw(ctx,&self.assets.joker_50_50,DrawParam{
+        dest:Point2{x:0.0,y:180.0},
+        scale:Vector2{x:0.1143,y:0.0886},
+        ..Default::default()
+      })?;
+    }
+
+    // help from public joker
+    if self.help_public == false {
+      graphics::draw(ctx,&self.assets.joker_help_public,DrawParam{
+        dest:Point2{x:0.0,y:215.0},
+        scale:Vector2{x:0.1143,y:0.0886},
+        ..Default::default()
+      })?;
+    }
+    else if self.current_question_index == self.help_public_index {
+      let answer_a = graphics::Text::new(format!("People who support A : {} % ",self.answer_public.0));
+      graphics::draw(ctx,&answer_a,DrawParam{dest:Point2{x: 175.0,y: 125.0},..Default::default()})?;
+      let answer_b = graphics::Text::new(format!("People who support B : {} % ",self.answer_public.1));
+      graphics::draw(ctx,&answer_b,DrawParam{dest:Point2{x: 175.0,y: 140.0},..Default::default()})?;
+      let answer_c = graphics::Text::new(format!("People who support C : {} % ",self.answer_public.2));
+      graphics::draw(ctx,&answer_c,DrawParam{dest:Point2{x: 175.0,y: 155.0},..Default::default()})?;
+      let answer_d = graphics::Text::new(format!("People who support D : {} % ",self.answer_public.3));
+      graphics::draw(ctx,&answer_d,DrawParam{dest:Point2{x: 175.0,y: 170.0},..Default::default()})?;
+    } 
+
+    // call a friend joker
+      if self.friend_call == false  {
+        graphics::draw(ctx,&self.assets.joker_friend_call,DrawParam{
+          dest:Point2{x:0.0,y:250.0},
+          scale:Vector2{x:0.1143,y:0.0886},
+          ..Default::default()
+        })?;
+      }
+      else if self.current_question_index == self.friend_call_index {
+        let message = graphics::Text::new(format!("I think the answer is : {} ",self.answer_friend));
+        graphics::draw(ctx,&message,DrawParam{dest:Point2{x: 175.0,y: 120.0},..Default::default()})?;
+      } 
+
+    
 
     //draws the question placeholder
     let question_rect = graphics::Mesh::new_rectangle(
@@ -341,105 +591,47 @@ impl EventHandler for GameState {
     })?; 
 
 
-  //marking logic  
-  if self.answer_marked == 'a'{
-      match self.answer_state{
-        AnswerState::Marked =>
-          graphics::draw(ctx,&answer_rect,DrawParam{
-            dest:Point2{x:60.0,y:400.0},
-            color:Color::from_rgb(225,157,0),
-            ..Default::default()
-          })?,
-        AnswerState::Correct =>
-          graphics::draw(ctx,&answer_rect,DrawParam{
-            dest:Point2{x:60.0,y:400.0},
-            color:Color::from_rgb(0,157,0),
-            ..Default::default()
-          })?,
-        AnswerState::Wrong =>
-          graphics::draw(ctx,&answer_rect,DrawParam{
-            dest:Point2{x:60.0,y:400.0},
-            color:Color::from_rgb(225,0,0),
-            ..Default::default()
-          })?,
-        _ => (),  
-      }
-  }
-  else if self.answer_marked == 'b' {
-    match self.answer_state{
-      AnswerState::Marked =>
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:410.0,y:400.0},
-          color:Color::from_rgb(225,157,0),
-          ..Default::default()
-        })?,
-      AnswerState::Correct =>
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:410.0,y:400.0},
-          color:Color::from_rgb(0,157,0),
-          ..Default::default()
-        })?,
-      AnswerState::Wrong =>
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:410.0,y:400.0},
-          color:Color::from_rgb(225,0,0),
-          ..Default::default()
-        })?,
-      _ => (),
+    //marking logic  
+    let mut answer_coord = Point2{x:0.0,y:0.0};
+    if self.answer_marked == 'a'{
+      answer_coord = Point2{x:60.0,y:400.0};
     }
-  }
-  else if self.answer_marked == 'c'{
+    else if self.answer_marked == 'b' {
+      answer_coord = Point2{x:410.0,y:400.0};
+    }
+    else if self.answer_marked == 'c' {
+      answer_coord = Point2{x:60.0,y:450.0};
+    }
+    else {
+      answer_coord = Point2{x:410.0,y:450.0};
+    }
+
     match self.answer_state{
       AnswerState::Marked =>
         graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:60.0,y:450.0},
+          dest:answer_coord,
           color:Color::from_rgb(225,157,0),
           ..Default::default()
         })?,
       AnswerState::Correct =>
         graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:60.0,y:450.0},
+          dest:answer_coord,
           color:Color::from_rgb(0,157,0),
           ..Default::default()
         })?,
       AnswerState::Wrong =>
         graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:60.0,y:450.0},
+          dest:answer_coord,
           color:Color::from_rgb(225,0,0),
           ..Default::default()
         })?,
       _ => (),  
     }
-  }
-  else{
-    match self.answer_state{
-      AnswerState::Marked =>
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:410.0,y:450.0},
-          color:Color::from_rgb(225,157,0),
-          ..Default::default()
-        })?,
-      AnswerState::Correct =>
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:410.0,y:450.0},
-          color:Color::from_rgb(0,157,0),
-          ..Default::default()
-        })?,
-      AnswerState::Wrong =>
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:Point2{x:410.0,y:450.0},
-          color:Color::from_rgb(225,0,0),
-          ..Default::default()
-        })?,
-      _ => (),  
-    }
-  }
-   
-     //draw a message showing saved scores
-     if self.current_score == 500 && self.current_score == 2500{
+
+    //draw a message showing saved scores
+    if self.current_score == 500 && self.current_score == 2500{
       let message = graphics::Text::new(format!("You now have capped {} leva",self.current_score));
       graphics::draw(ctx,&message,DrawParam{dest:Point2{x: 175.0,y: 120.0},..Default::default()})?;
-     
     }
 
     //draws the question
@@ -486,4 +678,3 @@ pub fn main() {
   //run!
   event::run(ctx, event_loop, state).unwrap();
 }
-
