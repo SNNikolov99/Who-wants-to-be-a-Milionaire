@@ -260,6 +260,53 @@ impl GameState{
     choices[dist.sample(&mut self.rng)]
   }
 
+  /*
+  fn update_markings(&mut self,ctx:&mut Context) -> GameResult{
+    //draws an answer placeholder
+    let answer_rect = graphics::Mesh::new_rectangle(
+      ctx,
+       DrawMode::fill(),
+      Rect::new(0.0,0.0,330.0,40.0),
+      Color::new(255.0,255.0,255.0,0.95))?;
+
+    let mut answer_coord = Point2{x:0.0,y:0.0};
+    if self.answer_marked == 'a'{
+      answer_coord = Point2{x:60.0,y:400.0};
+    }
+    else if self.answer_marked == 'b' {
+      answer_coord = Point2{x:410.0,y:400.0};
+    }
+    else if self.answer_marked == 'c' {
+      answer_coord = Point2{x:60.0,y:450.0};
+    }
+    else if self.answer_marked == 'd'{
+      answer_coord = Point2{x:410.0,y:450.0};
+    }
+    
+    //decide which colour to use based on AnswerState
+    let mut colour = Color::from_rgb(0,0,0);
+    match self.answer_state{
+      AnswerState::Marked =>{
+        colour = Color::from_rgb(225,157,0);
+      },
+      AnswerState::Correct =>{
+        colour = Color::from_rgb(0,157,0);
+      },
+      AnswerState::Wrong =>{
+        colour = Color::from_rgb(225,0,0);
+      },
+      _ => (),  
+    }
+    
+    graphics::draw(ctx,&answer_rect,DrawParam{
+      dest:answer_coord,
+      color:colour,
+      ..Default::default()
+    })?;
+    graphics::present(ctx)?;
+    Ok(())
+  }
+  */
 }
 
 impl EventHandler for GameState {
@@ -284,7 +331,7 @@ impl EventHandler for GameState {
     if self.player_resigned == true{
       self.saved_score = self.current_score;
       self.game_over = true;
-      ggez::timer::sleep(std::time::Duration::new(2,0));//make the exit more smooth
+      //ggez::timer::sleep(std::time::Duration::new(2,0));//make the exit more smooth
       self.assets.main_theme.stop();
       let _=self.assets.resign_sound.play();
       return Ok(());
@@ -336,17 +383,19 @@ impl EventHandler for GameState {
     }
 
 
-    let desired_fps = 20;
+    let desired_fps = 18;
     let second = 1.0/desired_fps as f32;  
     self.next_question = false;
 
     //change transtition time for questions 5 and 10
     if (self.current_question_index == 4 || self.current_question_index == 9) && self.time_marked >=2.0 {
-      self.time_transition = 4.0;
+      self.time_transition = 5.5;
     }
 
     
     while timer::check_update_time(ctx, desired_fps) == true{
+      //self.update_markings(ctx)?;
+      self.draw(ctx)?;
       //if an answer is marked, start substracting seconds
         if self.answer_marked == 'a' || self.answer_marked == 'b' || self.answer_marked == 'c' || self.answer_marked == 'd'  {
           self.time_marked -=second;
@@ -365,8 +414,8 @@ impl EventHandler for GameState {
                       self.time_transition = 0.9;
                       self.time_marked = 2.0;
                       self.next_question = true;
-                      self.assets.saved_score_sound.pause();
-                      let _ =self.assets.main_theme.play();
+                      self.assets.saved_score_sound.stop();
+                      self.assets.main_theme.resume();
                     }
                     
                   },
@@ -438,7 +487,6 @@ impl EventHandler for GameState {
           }
         }
         self.current_score =self.score_board[self.current_question_index];
-        self.draw(ctx)?;
     }
 
     Ok(())
@@ -602,37 +650,30 @@ impl EventHandler for GameState {
     else if self.answer_marked == 'c' {
       answer_coord = Point2{x:60.0,y:450.0};
     }
-    else {
+    else if self.answer_marked == 'd'{
       answer_coord = Point2{x:410.0,y:450.0};
     }
 
+    
+    let mut colour = Color::from_rgb(0,0,0);
     match self.answer_state{
-      AnswerState::Marked =>
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:answer_coord,
-          color:Color::from_rgb(225,157,0),
-          ..Default::default()
-        })?,
-      AnswerState::Correct =>
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:answer_coord,
-          color:Color::from_rgb(0,157,0),
-          ..Default::default()
-        })?,
-      AnswerState::Wrong =>
-        graphics::draw(ctx,&answer_rect,DrawParam{
-          dest:answer_coord,
-          color:Color::from_rgb(225,0,0),
-          ..Default::default()
-        })?,
+      AnswerState::Marked =>{
+        colour = Color::from_rgb(225,157,0);
+      },
+      AnswerState::Correct =>{
+        colour = Color::from_rgb(0,157,0);
+      },
+      AnswerState::Wrong =>{
+        colour = Color::from_rgb(225,0,0);
+      },
       _ => (),  
     }
-
-    //draw a message showing saved scores
-    if self.current_score == 500 && self.current_score == 2500{
-      let message = graphics::Text::new(format!("You now have capped {} leva",self.current_score));
-      graphics::draw(ctx,&message,DrawParam{dest:Point2{x: 175.0,y: 120.0},..Default::default()})?;
-    }
+    
+    graphics::draw(ctx,&answer_rect,DrawParam{
+      dest:answer_coord,
+      color:colour,
+      ..Default::default()
+    })?;
 
     //draws the question
     self.current_question.draw(ctx)?;
