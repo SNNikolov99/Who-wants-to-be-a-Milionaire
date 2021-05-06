@@ -85,14 +85,17 @@ impl GameState{
         saved_score:0,
         score_board: vec!(0,50,100,200,300,500,750,1000,1500,2000,2500,5000,10000,25000,50000,100000),
         time_marked:2.0,
-        time_transition:0.9,
+        time_transition:0.5,
         
       };
 
     Ok(gs)
   }
 
+  // "50/50 joker" logic
   fn joker_50_50(&mut self){
+
+    //Remove two different answers.The right one should not be removed
     let first_removed = self.rng.gen_range(1..3);
     let mut second_removed = self.rng.gen_range(1..3);
 
@@ -190,13 +193,13 @@ impl GameState{
     }
   }
 
-
+  // "Help from the public" joker logic
   fn help_public(&mut self) -> (u32,u32,u32,u32){
     let mut a_supporters = 0;
     let mut b_supporters = 0;
     let mut c_supporters = 0;
     let mut d_supporters = 0;
-
+    //Sum the answers from 100 people 
     for _i in 1..100 {
       if self.friend_call() == 'a' {
         a_supporters +=1;
@@ -214,6 +217,7 @@ impl GameState{
     (a_supporters,b_supporters,c_supporters,d_supporters)
   }
 
+  //"Call a friend" joker logic
   fn friend_call(&mut self) -> char {
     let mut prob = 1.0; // probabiity for right answer
     let choices = ['a', 'b', 'c','d'];
@@ -223,7 +227,7 @@ impl GameState{
       prob = 1.0;
     }
     else if self.current_question_index >=5 && self.current_question_index <=6 {
-      prob = 0.90;
+      prob = 0.80;
     }
     else if self.current_question_index >=7 && self.current_question_index <=8 {
       prob = 0.65;
@@ -260,7 +264,7 @@ impl GameState{
     choices[dist.sample(&mut self.rng)]
   }
 
-  /*
+  //A cheaper function for drawing just the marking logic
   fn update_markings(&mut self,ctx:&mut Context) -> GameResult{
     //draws an answer placeholder
     let answer_rect = graphics::Mesh::new_rectangle(
@@ -306,11 +310,10 @@ impl GameState{
     graphics::present(ctx)?;
     Ok(())
   }
-  */
+  
 }
 
 impl EventHandler for GameState {
-
   fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods,_repeat:bool){
     match keycode {
       event::KeyCode::R =>self.player_resigned  = true,
@@ -321,7 +324,6 @@ impl EventHandler for GameState {
   
 
   fn update(&mut self, ctx: &mut Context) -> GameResult {
-    
     //what happens if game is over
     if self.game_over == true{
       return Ok(());
@@ -344,7 +346,7 @@ impl EventHandler for GameState {
     }
 
     let mouse_pos = mouse::position(ctx);
-
+    //What happens when the left button of the mouse is clicked on one of the answer placeholders
     if  mouse_pos.x >= 60.0 && mouse_pos.x <=390.0 && mouse_pos.y >= 400.0 && mouse_pos.y <= 440.0{
       self.answer_state = AnswerState::Marked;
       self.answer_marked = 'a';
@@ -374,7 +376,7 @@ impl EventHandler for GameState {
       self.answer_public = self.help_public();
       self.help_public_index = self.current_question_index;
     }
-     //use joker "Call a friend"
+    //use joker "Call a friend"
     if mouse_pos.x <= 38.0 && mouse_pos.y >= 250.0 && mouse_pos.y <= 280.0 && self.friend_call == false {
       self.friend_call = true;
       self.answer_friend = self.friend_call();
@@ -392,30 +394,29 @@ impl EventHandler for GameState {
       self.time_transition = 5.5;
     }
 
-    
+    //If the desired amount of time has passed,do magic
     while timer::check_update_time(ctx, desired_fps) == true{
-      //self.update_markings(ctx)?;
-      self.draw(ctx)?;
+      self.update_markings(ctx)?;
       //if an answer is marked, start substracting seconds
         if self.answer_marked == 'a' || self.answer_marked == 'b' || self.answer_marked == 'c' || self.answer_marked == 'd'  {
           self.time_marked -=second;
           if self.time_marked <= 0.0 {
             //when the marked question is right
-            if self.current_question.correct_answer == self.answer_marked{    
+            if self.current_question.correct_answer == self.answer_marked{ 
+                self.answer_state = AnswerState::Correct;   
                 //save the score after question 5,10 and play the saved_score sound effect
                 match self.current_question_index{
                   4 =>{
                     self.saved_score = 500;
                     self.assets.main_theme.pause();
                     let _=self.assets.saved_score_sound.play();
-                    self.answer_state = AnswerState::Correct;
                     self.time_transition -= second;
                     if self.time_transition <=0.0{
-                      self.time_transition = 0.9;
+                      self.time_transition = 0.5;
                       self.time_marked = 2.0;
                       self.next_question = true;
                       self.assets.saved_score_sound.stop();
-                      self.assets.main_theme.resume();
+                      let _ = self.assets.main_theme.play();
                     }
                     
                   },
@@ -423,16 +424,14 @@ impl EventHandler for GameState {
                     self.saved_score = 2500;
                     self.assets.main_theme.pause();
                     let _=self.assets.saved_score_sound.play();
-                    self.answer_state = AnswerState::Correct;
                     self.time_transition -= second;
                     if self.time_transition <= 0.0{
-                      self.time_transition = 0.9;
+                      self.time_transition = 0.5;
                       self.time_marked = 2.0;
                       self.next_question = true;
-                      self.assets.saved_score_sound.pause();
-                      let _ =self.assets.main_theme.play();
+                      self.assets.saved_score_sound.stop();
+                      let _ = self.assets.main_theme.play();
                     }
-                    
                   },
                   14 =>{
                     self.saved_score = 100000;
@@ -441,7 +440,6 @@ impl EventHandler for GameState {
                   _ =>
                   {   
                     let _ = self.assets.right_question_sound.play();
-                    self.answer_state =  AnswerState::Correct;
                     self.time_transition -= second;
                     if self.time_transition <= 0.0{
                       self.time_transition = 0.5;
